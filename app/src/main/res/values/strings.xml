@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HiddenBox</string>
+    <string name="add_app">إضافة تطبيق</string>
+    <string name="empty_hint">لا توجد تطبيقات بعد.\nاضغط + لإضافة ملف APK وتشغيله هنا.</string>
+    <string name="install_ok">تم التثبيت داخل البيئة بنجاح</string>
+    <string name="install_fail">فشل التثبيت: %1$s</string>
+    <string name="launch_fail">تعذّر تشغيل التطبيق</string>
+    <string name="uninstall">حذف</string>
+    <string name="uninstall_confirm">حذف %1$s من البيئة؟ ستُحذف بياناته أيضاً.</string>
+
+    <string name="perm_title">إذن الوصول للملفات</string>
+    <string name="perm_msg">بعض التطبيقات تحتاج إذن \"الوصول لكل الملفات\" حتى تعمل داخل البيئة. امنح الإذن ثم عُد للتطبيق.</string>
+    <string name="perm_grant">فتح الإعدادات</string>
+    <string name="perm_later">لاحقاً</string>
+</resources>
