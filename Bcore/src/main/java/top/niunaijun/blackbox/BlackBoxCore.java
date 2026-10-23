@@ -1142,7 +1142,21 @@ public class BlackBoxCore extends ClientConfiguration {
             }
             
             PackageInfo packageInfo = getPackageManager().getPackageInfo(packageName, 0);
-            return getBPackageManager().installPackageAsUser(packageInfo.applicationInfo.sourceDir, InstallOption.installBySystem(), userId);
+            if (packageInfo.applicationInfo == null || packageInfo.applicationInfo.sourceDir == null) {
+                return new InstallResult().installError("Cannot access the installed application's APK.");
+            }
+            // A base APK alone is insufficient for apps delivered as split APKs.
+            // Refuse an incomplete clone instead of showing a misleading success.
+            String[] splits = packageInfo.applicationInfo.splitSourceDirs;
+            if (splits != null && splits.length > 0) {
+                return new InstallResult().installError("This app uses " + splits.length
+                        + " split APK(s). This version cannot clone them independently. "
+                        + "Do not uninstall the original app.");
+            }
+            // FLAG_STORAGE copies the APK into the private sandbox. FLAG_SYSTEM
+            // keeps a dependency on the host installation, which breaks on removal.
+            return getBPackageManager().installPackageAsUser(
+                    packageInfo.applicationInfo.sourceDir, InstallOption.installByStorage(), userId);
         } catch (PackageManager.NameNotFoundException e) {
             e.printStackTrace();
             return new InstallResult().installError(e.getMessage());

@@ -87,7 +87,7 @@ class InstalledAppsActivity : AppCompatActivity() {
             if (err == null) {
                 Toast.makeText(
                     this@InstalledAppsActivity,
-                    getString(R.string.clone_ok, app.label),
+                    getString(R.string.clone_ok, app.label) + " — Open and test inside HiddenBox, then reboot and test again before removing the original. App data is not transferred.",
                     Toast.LENGTH_SHORT
                 ).show()
                 setResult(RESULT_OK)
