@@ -13,4 +13,34 @@
     <string name="perm_msg">بعض التطبيقات تحتاج إذن \"الوصول لكل الملفات\" حتى تعمل داخل البيئة. امنح الإذن ثم عُد للتطبيق.</string>
     <string name="perm_grant">فتح الإعدادات</string>
     <string name="perm_later">لاحقاً</string>
+
+    <!-- Add source chooser -->
+    <string name="add_source_title">إضافة تطبيق</string>
+    <string name="add_from_phone">من تطبيقات الهاتف</string>
+    <string name="add_from_apk">من ملف APK</string>
+
+    <!-- Clone from phone -->
+    <string name="phone_apps_title">اختر تطبيقاً من الهاتف</string>
+    <string name="no_phone_apps">لا توجد تطبيقات قابلة للاستنساخ</string>
+    <string name="clone_ok">تم استنساخ %1$s داخل البوكس</string>
+
+    <!-- Disguise lock -->
+    <string name="game_name">لعبة الحساب</string>
+    <string name="lock_question">1 + 1 = ؟</string>
+    <string name="lock_input_hint">أدخل الإجابة</string>
+    <string name="lock_check">تحقّق</string>
+    <string name="lock_wrong">إجابة خاطئة، حاول مجدداً</string>
+    <string name="lock_setup_title">اضبط كلمة السر</string>
+    <string name="lock_setup_hint">أدخل كلمة سر سرية للدخول إلى البوكس. تذكّرها جيداً — لا يمكن استعادتها إذا نُسيت. (الإجابة الصحيحة 2 تفتح اللعبة فقط.)</string>
+    <string name="lock_setup_bad">لا يمكن أن تكون كلمة السر هي \"2\". اختر كلمة أخرى.</string>
+    <string name="lock_save">حفظ</string>
+    <string name="lock_saved">تم حفظ كلمة السر</string>
+
+    <!-- Decoy game -->
+    <string name="game_title">لعبة الحساب السريع</string>
+    <string name="game_question">%1$d + %2$d = ؟</string>
+    <string name="game_score">النقاط: %1$d</string>
+    <string name="game_check">تحقّق</string>
+    <string name="game_correct">صحيح! 🎉</string>
+    <string name="game_wrong">خطأ! حاول مجدداً</string>
 </resources>

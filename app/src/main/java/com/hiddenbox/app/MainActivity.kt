@@ -37,6 +37,11 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.OpenDocument()
     ) { uri: Uri? -> uri?.let { doInstall(it) } }
 
+    // Picker that clones an app already installed on the phone.
+    private val pickInstalled = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { refresh() }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -45,7 +50,7 @@ class MainActivity : AppCompatActivity() {
         binding.list.layoutManager = GridLayoutManager(this, 4)
         binding.list.adapter = adapter
 
-        binding.fabAdd.setOnClickListener { ensureStorageThenPick() }
+        binding.fabAdd.setOnClickListener { chooseAddSource() }
 
         refresh()
     }
@@ -61,6 +66,21 @@ class MainActivity : AppCompatActivity() {
             adapter.submit(apps)
             binding.empty.visibility = if (apps.isEmpty()) View.VISIBLE else View.GONE
         }
+    }
+
+    /** Ask whether to add from a phone app (clone) or from an APK file. */
+    private fun chooseAddSource() {
+        val options = arrayOf(getString(R.string.add_from_phone), getString(R.string.add_from_apk))
+        AlertDialog.Builder(this)
+            .setTitle(R.string.add_source_title)
+            .setItems(options) { _, which ->
+                if (which == 0) {
+                    pickInstalled.launch(Intent(this, InstalledAppsActivity::class.java))
+                } else {
+                    ensureStorageThenPick()
+                }
+            }
+            .show()
     }
 
     /** Engine needs all-files access from Android 11+ to run some apps. */

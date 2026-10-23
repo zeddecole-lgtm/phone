@@ -21,14 +21,33 @@
         tools:targetApi="n"
         tools:replace="android:name,android:allowBackup,android:theme">
 
+        <!-- Disguise launcher: looks like a plain math quiz. -->
         <activity
-            android:name=".MainActivity"
+            android:name=".LockActivity"
             android:exported="true"
+            android:label="@string/game_name"
             android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Decoy game shown when the cover answer is entered. -->
+        <activity
+            android:name=".GameActivity"
+            android:exported="false"
+            android:label="@string/game_name" />
+
+        <!-- Real app list, reachable only via the secret password. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:launchMode="singleTop" />
+
+        <!-- Picker that clones an app already installed on the phone. -->
+        <activity
+            android:name=".InstalledAppsActivity"
+            android:exported="false" />
     </application>
 </manifest>
