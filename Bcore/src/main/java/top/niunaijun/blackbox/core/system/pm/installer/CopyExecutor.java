@@ -35,6 +35,10 @@ public class CopyExecutor implements Executor {
             File origFile = new File(ps.pkg.baseCodePath);
             File newFile = BEnvironment.getBaseApkDir(ps.pkg.packageName);
             try {
+                long expectedBytes = origFile.length();
+                if (expectedBytes <= 0) {
+                    throw new IOException("Source APK is missing or empty.");
+                }
                 if (option.isFlag(InstallOption.FLAG_URI_FILE)) {
                     boolean b = FileUtils.renameTo(origFile, newFile);
                     if (!b) {
@@ -43,7 +47,7 @@ public class CopyExecutor implements Executor {
                 } else {
                     FileUtils.copyFile(origFile, newFile);
                 }
-                if (newFile.length() != origFile.length() || !newFile.setReadOnly()) {
+                if (newFile.length() != expectedBytes || !newFile.setReadOnly()) {
                     throw new IOException("Unable to make an independent copy of base.apk");
                 }
                 // Keep split code and resources in the same private app directory.
