@@ -127,6 +127,24 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun launch(app: VApp) {
+        // KAST requires Google Play services. Offer genuine dependency
+        // installation before attempting to launch it without those services.
+        if (app.packageName == "com.kastfinance.app" && !VirtualCore.gmsInstalled()) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.gms_required_title)
+                .setMessage(R.string.gms_required_body)
+                .setPositiveButton(R.string.gms_try_install) { _, _ ->
+                    installGms { launchDirect(app) }
+                }
+                .setNeutralButton(R.string.gms_continue) { _, _ -> launchDirect(app) }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+            return
+        }
+        launchDirect(app)
+    }
+
+    private fun launchDirect(app: VApp) {
         if (!VirtualCore.launch(app.packageName)) {
             AlertDialog.Builder(this)
                 .setTitle(R.string.launch_fail_title)
@@ -144,6 +162,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
         R.id.action_install_gms -> { installGms(); true }
+        R.id.action_gms_diagnostics -> { showGoogleServicesStatus(); true }
         R.id.action_help -> { showHelp(); true }
         else -> super.onOptionsItemSelected(item)
     }
@@ -156,16 +175,25 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun installGms() {
+    private fun showGoogleServicesStatus() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.gms_status_title)
+            .setMessage(VirtualCore.googleServicesStatus() + "\n\n" + getString(R.string.gms_status_warning))
+            .setPositiveButton(R.string.ok, null)
+            .show()
+    }
+
+    private fun installGms(afterSuccess: (() -> Unit)? = null) {
         if (!VirtualCore.hostHasGms()) {
             AlertDialog.Builder(this)
+                .setTitle(R.string.gms_status_title)
                 .setMessage(R.string.gms_host_missing)
                 .setPositiveButton(R.string.ok, null)
                 .show()
             return
         }
         if (VirtualCore.gmsInstalled()) {
-            toast(getString(R.string.gms_already))
+            if (afterSuccess != null) afterSuccess() else showGoogleServicesStatus()
             return
         }
         binding.progress.visibility = View.VISIBLE
@@ -173,8 +201,25 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val err = withContext(Dispatchers.IO) { VirtualCore.installGms() }
             binding.progress.visibility = View.GONE
-            toast(if (err == null) getString(R.string.gms_done) else getString(R.string.gms_fail, err))
-            refresh()
+            if (err != null) {
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle(R.string.gms_status_title)
+                    .setMessage(getString(R.string.gms_fail, err) + "\n\n" +
+                            VirtualCore.googleServicesStatus())
+                    .setPositiveButton(R.string.ok, null)
+                    .show()
+            } else {
+                refresh()
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle(R.string.gms_status_title)
+                    .setMessage(getString(R.string.gms_done) + "\n\n" +
+                            getString(R.string.gms_status_warning))
+                    .setPositiveButton(if (afterSuccess == null) getString(R.string.ok)
+                        else getString(R.string.gms_continue)) { _, _ ->
+                        afterSuccess?.invoke()
+                    }
+                    .show()
+            }
         }
     }
 

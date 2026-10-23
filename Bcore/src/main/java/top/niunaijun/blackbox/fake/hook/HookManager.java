@@ -136,11 +136,14 @@ public class HookManager {
             addInjector(new SQLiteDatabaseProxy());
             addInjector(new ClassLoaderProxy());
             addInjector(new FileSystemProxy());
-            addInjector(new GmsProxy());
+            // No simulated GmsProxy results: authentication must use real providers.
+
             addInjector(new LevelDbProxy());
             addInjector(new DeviceIdProxy());
-            addInjector(new GoogleAccountManagerProxy());
-            addInjector(new AuthenticationProxy());
+            // No simulated GoogleAccountManagerProxy results: authentication must use real providers.
+
+            // No simulated AuthenticationProxy results: authentication must use real providers.
+
             addInjector(new AndroidIdProxy());
             addInjector(new AudioPermissionProxy());
             addInjector(new ILocationManagerProxy());

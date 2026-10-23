@@ -6,6 +6,10 @@
         android:title="@string/menu_install_gms"
         app:showAsAction="never" />
     <item
+        android:id="@+id/action_gms_diagnostics"
+        android:title="@string/menu_gms_status"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_help"
         android:title="@string/menu_help"
         app:showAsAction="never" />

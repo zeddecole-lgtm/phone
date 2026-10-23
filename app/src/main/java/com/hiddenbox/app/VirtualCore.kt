@@ -101,8 +101,22 @@ object VirtualCore {
     /** Whether the host phone itself has Google Play services available. */
     fun hostHasGms(): Boolean = runCatching { core.isSupportGms }.getOrDefault(false)
 
-    /** Whether Google Play services are already installed inside the sandbox. */
+    /** Presence of a virtual package is not proof that Play services are running. */
     fun gmsInstalled(): Boolean = runCatching { core.isInstallGms(USER_ID) }.getOrDefault(false)
+
+    /** Report separate host and virtual package states, without faking integrity. */
+    fun googleServicesStatus(): String {
+        val host = hostHasGms()
+        val gms = gmsInstalled()
+        val gsf = runCatching { core.isInstalled("com.google.android.gsf", USER_ID) }.getOrDefault(false)
+        val store = runCatching { core.isInstalled("com.android.vending", USER_ID) }.getOrDefault(false)
+        val yes = "✓"
+        val no = "✗"
+        return "Google Play services on phone: ${if (host) yes else no}\n" +
+                "Google Play services inside HiddenBox: ${if (gms) yes else no}\n" +
+                "Google Services Framework inside HiddenBox: ${if (gsf) yes else no}\n" +
+                "Play Store inside HiddenBox: ${if (store) yes else no}"
+    }
 
     /**
      * Install Google Play services into the sandbox by cloning them from the

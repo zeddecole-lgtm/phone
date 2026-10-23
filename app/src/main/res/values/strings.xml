@@ -34,11 +34,20 @@
     <string name="gms_done">تم تثبيت خدمات Google داخل البوكس</string>
     <string name="gms_already">خدمات Google مثبّتة مسبقاً داخل البوكس</string>
     <string name="gms_fail">تعذّر التثبيت: %1$s</string>
+    <string name="menu_gms_status">تشخيص خدمات Google</string>
+    <string name="gms_status_title">حالة خدمات Google</string>
+    <string name="gms_required_title">KAST يحتاج خدمات Google</string>
+    <string name="gms_required_body">لم تُثبّت خدمات Google داخل HiddenBox. يمكن محاولة نسخ المكونات الأصلية من الهاتف. هذا لا يضمن قبول KAST للبيئة الافتراضية أو نجاح App Check.</string>
+    <string name="gms_try_install">محاولة تثبيت الخدمات</string>
+    <string name="gms_continue">فتح التطبيق</string>
+    <string name="gms_status_warning">وجود خدمات Google داخل HiddenBox لا يعني أنها تعمل بالكامل ولا يضمن نجاح فحوص App Check أو Play Integrity. إذا استمر خطأ APPCHECK-00401 فجرب تثبيت KAST في ملف عمل Android حقيقي عبر Island، أو تواصل مع دعم KAST.</string>
     <string name="gms_host_missing">جهازك نفسه لا يحتوي خدمات Google Play، لذا لا يمكن تثبيتها داخل البوكس. (يعمل هذا فقط على الأجهزة التي تملك خدمات Google.)</string>
 
     <!-- Help / limitations -->
     <string name="help_title">لماذا لا يعمل بعض التطبيقات؟</string>
-    <string name="help_body">معظم التطبيقات تعمل داخل البوكس، لكن بعضها لا يعمل بسبب حمايات داخل التطبيق نفسه، وليست عيباً في HiddenBox:\n\n• التطبيقات المصرفية والمالية (مثل KAST) تستخدم فحص السلامة App Check / Play Integrity الذي يرفض العمل داخل بيئة معزولة أو نسخة مستنسخة. لا يمكن تجاوز هذه الحماية.\n\n• بعض التطبيقات تحتاج خدمات Google Play. جرّب «تثبيت خدمات Google داخل البوكس» من القائمة — ويشترط أن تكون موجودة على جهازك أصلاً.\n\n• التطبيقات الموزّعة كحزم مقسّمة (Split APKs) قد تعمل جزئياً لأن الاستنساخ ينسخ الحزمة الأساسية فقط.</string>
+    <string name="help_body">معظم التطبيقات تعمل داخل البوكس، لكن بعضها لا يعمل بسبب حمايات داخل التطبيق نفسه، وليست عيباً في HiddenBox:\n\n• التطبيقات المصرفية والمالية (مثل KAST) تستخدم فحص السلامة App Check / Play Integrity الذي يرفض العمل داخل بيئة معزولة أو نسخة مستنسخة. لا يمكن تجاوز هذه الحماية.\n\n• بعض التطبيقات تحتاج خدمات Google Play. جرّب «تثبيت خدمات Google داخل البوكس» من القائمة — ويشترط أن تكون موجودة على جهازك أصلاً.\n\n• الاستيراد المباشر ينسخ base.apk وملفات Split APK إلى التخزين الداخلي، لكنه لا ينقل بيانات تسجيل الدخول أو شهادات سلامة الجهاز.
+
+• جرّب قائمة «تشخيص خدمات Google» لمعرفة المكونات الموجودة. إذا ظل APPCheck يفشل، جرّب تثبيت التطبيق مباشرة في ملف عمل Android بواسطة Island.</string>
     <string name="launch_fail_title">تعذّر تشغيل التطبيق</string>
     <string name="launch_fail_body">لم يبدأ %1$s. قد يكون التطبيق يحتاج خدمات Google Play، أو يرفض العمل داخل بيئة معزولة (فحص سلامة). راجع «لماذا لا يعمل بعض التطبيقات؟» من القائمة.</string>
     <string name="ok">حسناً</string>

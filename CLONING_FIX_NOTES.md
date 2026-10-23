@@ -29,3 +29,23 @@ when every APK is copied correctly. No security checks are bypassed.
 
 The GitHub Actions workflow builds the project; a successful APK build is
 not the same as successful runtime testing.
+
+
+## Google services compatibility and App Check diagnostics
+
+- The **Google services status** menu now reports the host/virtual GMS, GSF and
+  Play Store package presence separately. This is *not* a health or integrity verdict.
+- KAST's launch flow asks to attempt installing genuine Google components from
+  the host phone when GMS is absent in the virtual user.
+- GMS installation now requires that the host and the virtual user actually have
+  Google Play services; optional Play Store failures no longer count as GMS failures.
+- Simulated Google accounts and authentication hooks are no longer registered.
+  Fake tokens are not accepted by Google's services and should never be used as a
+  substitute for real authentication.
+- An App Check rejection cannot safely or reliably be fixed by returning mock
+  tokens. If the provider requires Play Integrity, a virtual app engine may not
+  meet its integrity requirements. Work Profile on a supported real Android
+  device is a platform-supported alternative.
+
+Do not delete the original KAST installation without testing the independent
+copy, account access and reboot behavior.
