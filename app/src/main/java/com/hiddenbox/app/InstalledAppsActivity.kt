@@ -12,7 +12,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.hiddenbox.app.databinding.ActivityInstalledAppsBinding
-import com.hiddenbox.app.databinding.ItemAppBinding
+import com.hiddenbox.app.databinding.ItemPhoneAppBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -113,16 +113,18 @@ private class PhoneAppsAdapter(
         items.clear(); items.addAll(list); notifyDataSetChanged()
     }
 
-    class VH(val b: ItemAppBinding) : RecyclerView.ViewHolder(b.root)
+    class VH(val b: ItemPhoneAppBinding) : RecyclerView.ViewHolder(b.root)
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH =
-        VH(ItemAppBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+        VH(ItemPhoneAppBinding.inflate(LayoutInflater.from(parent.context), parent, false))
 
     override fun getItemCount() = items.size
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val app = items[position]
-        holder.b.name.text = if (app.alreadyInBox) "${app.label} ✓" else app.label
+        holder.b.name.text = app.label
+        holder.b.pkg.text = app.packageName
+        holder.b.badge.visibility = if (app.alreadyInBox) View.VISIBLE else View.GONE
         if (app.icon != null) holder.b.icon.setImageDrawable(app.icon)
         else holder.b.icon.setImageResource(R.mipmap.ic_launcher)
         holder.b.root.setOnClickListener { onClick(app) }

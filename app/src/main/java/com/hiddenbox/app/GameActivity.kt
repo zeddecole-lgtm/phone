@@ -3,6 +3,7 @@ package com.hiddenbox.app
 import android.os.Bundle
 import android.view.inputmethod.EditorInfo
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.hiddenbox.app.databinding.ActivityGameBinding
 import kotlin.random.Random
 
@@ -48,11 +49,13 @@ class GameActivity : AppCompatActivity() {
         if (answer == a + b) {
             score++
             binding.feedback.setText(R.string.game_correct)
+            binding.feedback.setTextColor(ContextCompat.getColor(this, R.color.success))
             updateScore()
             newQuestion()
         } else {
             score = 0
             binding.feedback.setText(R.string.game_wrong)
+            binding.feedback.setTextColor(ContextCompat.getColor(this, R.color.danger))
             updateScore()
             binding.input.text?.clear()
         }

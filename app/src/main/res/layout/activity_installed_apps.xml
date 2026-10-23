@@ -4,16 +4,17 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
+    android:background="@color/bg"
     android:fitsSystemWindows="true">
 
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="?attr/colorPrimary"
+        android:background="@android:color/transparent"
         app:navigationIcon="@android:drawable/ic_menu_close_clear_cancel"
         app:title="@string/phone_apps_title"
-        app:titleTextColor="@android:color/white" />
+        app:titleTextColor="@color/on_surface" />
 
     <FrameLayout
         android:layout_width="match_parent"
@@ -24,7 +25,8 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:padding="8dp" />
+            android:paddingTop="4dp"
+            android:paddingBottom="16dp" />
 
         <TextView
             android:id="@+id/empty"
@@ -32,8 +34,8 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:text="@string/no_phone_apps"
-            android:textColor="?android:attr/textColorSecondary"
-            android:textSize="16sp"
+            android:textColor="@color/on_surface_muted"
+            android:textSize="15sp"
             android:visibility="gone" />
 
         <ProgressBar
@@ -41,6 +43,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
+            android:indeterminateTint="@color/primary"
             android:visibility="gone" />
 
     </FrameLayout>

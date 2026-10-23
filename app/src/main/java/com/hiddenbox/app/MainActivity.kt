@@ -7,6 +7,8 @@ import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
 import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -46,6 +48,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        setSupportActionBar(binding.toolbar)
 
         binding.list.layoutManager = GridLayoutManager(this, 4)
         binding.list.adapter = adapter
@@ -125,7 +128,53 @@ class MainActivity : AppCompatActivity() {
 
     private fun launch(app: VApp) {
         if (!VirtualCore.launch(app.packageName)) {
-            toast(getString(R.string.launch_fail))
+            AlertDialog.Builder(this)
+                .setTitle(R.string.launch_fail_title)
+                .setMessage(getString(R.string.launch_fail_body, app.label))
+                .setPositiveButton(R.string.ok, null)
+                .setNeutralButton(R.string.menu_help) { _, _ -> showHelp() }
+                .show()
+        }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
+        R.id.action_install_gms -> { installGms(); true }
+        R.id.action_help -> { showHelp(); true }
+        else -> super.onOptionsItemSelected(item)
+    }
+
+    private fun showHelp() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.help_title)
+            .setMessage(R.string.help_body)
+            .setPositiveButton(R.string.ok, null)
+            .show()
+    }
+
+    private fun installGms() {
+        if (!VirtualCore.hostHasGms()) {
+            AlertDialog.Builder(this)
+                .setMessage(R.string.gms_host_missing)
+                .setPositiveButton(R.string.ok, null)
+                .show()
+            return
+        }
+        if (VirtualCore.gmsInstalled()) {
+            toast(getString(R.string.gms_already))
+            return
+        }
+        binding.progress.visibility = View.VISIBLE
+        toast(getString(R.string.gms_installing))
+        lifecycleScope.launch {
+            val err = withContext(Dispatchers.IO) { VirtualCore.installGms() }
+            binding.progress.visibility = View.GONE
+            toast(if (err == null) getString(R.string.gms_done) else getString(R.string.gms_fail, err))
+            refresh()
         }
     }
 

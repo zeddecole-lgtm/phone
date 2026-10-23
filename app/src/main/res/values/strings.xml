@@ -23,6 +23,25 @@
     <string name="phone_apps_title">اختر تطبيقاً من الهاتف</string>
     <string name="no_phone_apps">لا توجد تطبيقات قابلة للاستنساخ</string>
     <string name="clone_ok">تم استنساخ %1$s داخل البوكس</string>
+    <string name="in_box_badge">✓ في البوكس</string>
+
+    <!-- Overflow menu -->
+    <string name="menu_install_gms">تثبيت خدمات Google داخل البوكس</string>
+    <string name="menu_help">لماذا لا يعمل بعض التطبيقات؟</string>
+
+    <!-- Google Play services -->
+    <string name="gms_installing">جارٍ تثبيت خدمات Google داخل البوكس…</string>
+    <string name="gms_done">تم تثبيت خدمات Google داخل البوكس</string>
+    <string name="gms_already">خدمات Google مثبّتة مسبقاً داخل البوكس</string>
+    <string name="gms_fail">تعذّر التثبيت: %1$s</string>
+    <string name="gms_host_missing">جهازك نفسه لا يحتوي خدمات Google Play، لذا لا يمكن تثبيتها داخل البوكس. (يعمل هذا فقط على الأجهزة التي تملك خدمات Google.)</string>
+
+    <!-- Help / limitations -->
+    <string name="help_title">لماذا لا يعمل بعض التطبيقات؟</string>
+    <string name="help_body">معظم التطبيقات تعمل داخل البوكس، لكن بعضها لا يعمل بسبب حمايات داخل التطبيق نفسه، وليست عيباً في HiddenBox:\n\n• التطبيقات المصرفية والمالية (مثل KAST) تستخدم فحص السلامة App Check / Play Integrity الذي يرفض العمل داخل بيئة معزولة أو نسخة مستنسخة. لا يمكن تجاوز هذه الحماية.\n\n• بعض التطبيقات تحتاج خدمات Google Play. جرّب «تثبيت خدمات Google داخل البوكس» من القائمة — ويشترط أن تكون موجودة على جهازك أصلاً.\n\n• التطبيقات الموزّعة كحزم مقسّمة (Split APKs) قد تعمل جزئياً لأن الاستنساخ ينسخ الحزمة الأساسية فقط.</string>
+    <string name="launch_fail_title">تعذّر تشغيل التطبيق</string>
+    <string name="launch_fail_body">لم يبدأ %1$s. قد يكون التطبيق يحتاج خدمات Google Play، أو يرفض العمل داخل بيئة معزولة (فحص سلامة). راجع «لماذا لا يعمل بعض التطبيقات؟» من القائمة.</string>
+    <string name="ok">حسناً</string>
 
     <!-- Disguise lock -->
     <string name="game_name">لعبة الحساب</string>
@@ -39,6 +58,7 @@
     <!-- Decoy game -->
     <string name="game_title">لعبة الحساب السريع</string>
     <string name="game_question">%1$d + %2$d = ؟</string>
+    <string name="game_input_hint">إجابتك</string>
     <string name="game_score">النقاط: %1$d</string>
     <string name="game_check">تحقّق</string>
     <string name="game_correct">صحيح! 🎉</string>

@@ -96,6 +96,27 @@ object VirtualCore {
     fun launch(packageName: String): Boolean =
         runCatching { core.launchApk(packageName, USER_ID) }.getOrDefault(false)
 
+    /** Whether the host phone itself has Google Play services available. */
+    fun hostHasGms(): Boolean = runCatching { core.isSupportGms }.getOrDefault(false)
+
+    /** Whether Google Play services are already installed inside the sandbox. */
+    fun gmsInstalled(): Boolean = runCatching { core.isInstallGms(USER_ID) }.getOrDefault(false)
+
+    /**
+     * Install Google Play services into the sandbox by cloning them from the
+     * host phone. Only works if the host actually has them (many de-Googled
+     * phones don't). Returns null on success, or an error message.
+     */
+    fun installGms(): String? {
+        if (!hostHasGms()) return "HOST_NO_GMS"
+        return try {
+            val result = core.installGms(USER_ID)
+            if (result.success) null else (result.msg ?: "unknown error")
+        } catch (e: Throwable) {
+            e.message ?: e.toString()
+        }
+    }
+
     /** Remove a virtual app and its data from the sandbox. */
     fun uninstall(packageName: String) {
         runCatching { core.uninstallPackageAsUser(packageName, USER_ID) }
