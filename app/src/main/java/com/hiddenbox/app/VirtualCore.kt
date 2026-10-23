@@ -73,14 +73,16 @@ object VirtualCore {
      * Clone an app that is already installed on the phone into the sandbox,
      * by its package name. The engine reads the real app's base APK from the
      * system (ApplicationInfo.sourceDir) and installs a copy inside the box.
-     * The box copy is independent, so the original can be uninstalled from the
-     * phone afterwards and the cloned one keeps working.
+     * The base APK is copied into private storage, but private app data is not migrated.
+     * Always verify the virtual copy after a reboot before uninstalling the original.
      * @return null on success, or an error message.
      */
     fun cloneInstalled(packageName: String): String? {
         return try {
             val result = core.installPackageAsUser(packageName, USER_ID)
-            if (result.success) null else (result.msg ?: "unknown error")
+            if (!result.success) result.msg ?: "unknown error"
+            else if (packageName !in installedPackageNames()) "Installation returned success but the app was not registered in the sandbox."
+            else null
         } catch (e: Throwable) {
             e.message ?: e.toString()
         }

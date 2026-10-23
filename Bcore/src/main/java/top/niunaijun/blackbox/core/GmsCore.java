@@ -3,6 +3,7 @@ package top.niunaijun.blackbox.core;
 import android.content.pm.PackageManager;
 
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 import top.niunaijun.blackbox.BlackBoxCore;
@@ -61,7 +62,7 @@ public class GmsCore {
             }
             InstallResult installResult = blackBoxCore.installPackageAsUser(packageName, userId);
             if (!installResult.success) {
-                return installResult;
+                return installResult.installError("Google component " + packageName + ": " + installResult.msg);
             }
         }
         return new InstallResult();
@@ -75,14 +76,17 @@ public class GmsCore {
     }
 
     public static InstallResult installGApps(int userId) {
-        Set<String> googleApps = new HashSet<>();
-
+        Set<String> googleApps = new LinkedHashSet<>();
+        // Core framework first, then Play services, then Play Store and optional packages.
+        googleApps.add(GSF_PKG);
+        googleApps.add(GMS_PKG);
+        googleApps.add(VENDING_PKG);
         googleApps.addAll(GOOGLE_SERVICE);
         googleApps.addAll(GOOGLE_APP);
 
         InstallResult installResult = installPackages(googleApps, userId);
         if (!installResult.success) {
-            uninstallGApps(userId);
+            // Do not delete previously working Google components on partial failure.
             return installResult;
         }
         return installResult;
