@@ -33,6 +33,19 @@ public class AbiUtils {
         }
     }
 
+    /**
+     * Split APKs commonly keep native code in config.arm64_v8a.apk rather than
+     * in base.apk. ABI support must be checked across the complete APK set.
+     */
+    public static boolean isSupport(File[] apkFiles) {
+        AbiUtils combined = new AbiUtils(apkFiles[0]);
+        for (int i = 1; i < apkFiles.length; i++) {
+            combined.mLibs.addAll(new AbiUtils(apkFiles[i]).mLibs);
+        }
+        if (combined.isEmptyAib()) return true;
+        return BlackBoxCore.is64Bit() ? combined.is64Bit() : combined.is32Bit();
+    }
+
     public AbiUtils(File apkFile) {
         ZipFile zipFile = null;
         try {

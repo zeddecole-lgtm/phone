@@ -132,6 +132,13 @@ public class BPackage implements Parcelable {
         this.usesOptionalLibraries = aPackage.usesOptionalLibraries;
         this.mVersionCode = aPackage.mVersionCode;
         this.applicationInfo = aPackage.applicationInfo;
+        // PackageParser stores split code/resource locations separately. Persist
+        // them in ApplicationInfo, which is already part of BPackage's Parcel.
+        if (aPackage.splitCodePaths != null && aPackage.splitCodePaths.length > 0) {
+            this.applicationInfo.splitSourceDirs = aPackage.splitCodePaths.clone();
+            this.applicationInfo.splitPublicSourceDirs = aPackage.splitCodePaths.clone();
+            this.applicationInfo.splitNames = aPackage.splitNames;
+        }
         this.mVersionName = aPackage.mVersionName;
         this.baseCodePath = aPackage.baseCodePath;
         this.mSharedUserLabel = aPackage.mSharedUserLabel;

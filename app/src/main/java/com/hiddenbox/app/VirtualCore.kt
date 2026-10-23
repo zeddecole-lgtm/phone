@@ -71,9 +71,9 @@ object VirtualCore {
 
     /**
      * Clone an app that is already installed on the phone into the sandbox,
-     * by its package name. The engine reads the real app's base APK from the
-     * system (ApplicationInfo.sourceDir) and installs a copy inside the box.
-     * The base APK is copied into private storage, but private app data is not migrated.
+     * by its package name. The engine reads the real base and split APKs
+     * from the system and copies them into independent private box storage.
+     * Application data and security attestations are not migrated.
      * Always verify the virtual copy after a reboot before uninstalling the original.
      * @return null on success, or an error message.
      */

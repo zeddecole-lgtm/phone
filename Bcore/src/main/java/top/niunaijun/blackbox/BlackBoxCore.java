@@ -1145,18 +1145,32 @@ public class BlackBoxCore extends ClientConfiguration {
             if (packageInfo.applicationInfo == null || packageInfo.applicationInfo.sourceDir == null) {
                 return new InstallResult().installError("Cannot access the installed application's APK.");
             }
-            // A base APK alone is insufficient for apps delivered as split APKs.
-            // Refuse an incomplete clone instead of showing a misleading success.
+            // For apps delivered as an APK cluster, parse the entire directory.
+            // Installing only base.apk silently loses code, resources and native libraries.
+            String basePath = packageInfo.applicationInfo.sourceDir;
+            java.io.File baseFile = new java.io.File(basePath);
+            if (!baseFile.isFile() || !baseFile.canRead()) {
+                return new InstallResult().installError("Original APK cannot be read.");
+            }
             String[] splits = packageInfo.applicationInfo.splitSourceDirs;
             if (splits != null && splits.length > 0) {
-                return new InstallResult().installError("This app uses " + splits.length
-                        + " split APK(s). This version cannot clone them independently. "
-                        + "Do not uninstall the original app.");
+                java.io.File parent = baseFile.getParentFile();
+                if (parent == null || !"base.apk".equals(baseFile.getName())) {
+                    return new InstallResult().installError("Unsupported split APK layout.");
+                }
+                for (String split : splits) {
+                    java.io.File part = new java.io.File(split);
+                    if (!part.isFile() || !part.canRead()
+                            || !part.getParentFile().equals(parent) || !part.getName().endsWith(".apk")) {
+                        return new InstallResult().installError("Missing or inaccessible split APK: " + part.getName());
+                    }
+                }
+                return getBPackageManager().installPackageAsUser(
+                        parent.getAbsolutePath(), InstallOption.installByStorage(), userId);
             }
-            // FLAG_STORAGE copies the APK into the private sandbox. FLAG_SYSTEM
-            // keeps a dependency on the host installation, which breaks on removal.
+            // FLAG_STORAGE copies the APK to sandbox-owned app storage.
             return getBPackageManager().installPackageAsUser(
-                    packageInfo.applicationInfo.sourceDir, InstallOption.installByStorage(), userId);
+                    basePath, InstallOption.installByStorage(), userId);
         } catch (PackageManager.NameNotFoundException e) {
             e.printStackTrace();
             return new InstallResult().installError(e.getMessage());

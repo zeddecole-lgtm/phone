@@ -15,9 +15,16 @@ public class CopyExecutor implements Executor {
 
     @Override
     public int exec(BPackageSettings ps, InstallOption option, int userId) {
+        // Extract native libraries from *every* APK, including ABI splits.
+        String[] originalSplits = ps.pkg.applicationInfo.splitSourceDirs;
         try {
             if (!option.isFlag(InstallOption.FLAG_SYSTEM)) {
                 NativeUtils.copyNativeLib(new File(ps.pkg.baseCodePath), BEnvironment.getAppLibDir(ps.pkg.packageName));
+                if (originalSplits != null) {
+                    for (String split : originalSplits) {
+                        NativeUtils.copyNativeLib(new File(split), BEnvironment.getAppLibDir(ps.pkg.packageName));
+                    }
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -36,9 +43,33 @@ public class CopyExecutor implements Executor {
                 } else {
                     FileUtils.copyFile(origFile, newFile);
                 }
-                newFile.setReadOnly();
-                
+                if (newFile.length() != origFile.length() || !newFile.setReadOnly()) {
+                    throw new IOException("Unable to make an independent copy of base.apk");
+                }
+                // Keep split code and resources in the same private app directory.
+                // Never leave paths pointing to the host app after installation.
+                if (originalSplits != null && originalSplits.length > 0) {
+                    String[] copiedSplits = new String[originalSplits.length];
+                    for (int i = 0; i < originalSplits.length; i++) {
+                        File source = new File(originalSplits[i]);
+                        String name = source.getName();
+                        if (!source.isFile() || !name.matches("[A-Za-z0-9._-]+\\.apk")
+                                || "base.apk".equals(name)) {
+                            throw new IOException("Invalid split APK: " + name);
+                        }
+                        File destination = new File(BEnvironment.getAppDir(ps.pkg.packageName), name);
+                        FileUtils.copyFile(source, destination);
+                        if (destination.length() != source.length() || !destination.setReadOnly()) {
+                            throw new IOException("Failed to copy split APK: " + name);
+                        }
+                        copiedSplits[i] = destination.getAbsolutePath();
+                    }
+                    ps.pkg.applicationInfo.splitSourceDirs = copiedSplits;
+                    ps.pkg.applicationInfo.splitPublicSourceDirs = copiedSplits.clone();
+                }
                 ps.pkg.baseCodePath = newFile.getAbsolutePath();
+                ps.pkg.applicationInfo.sourceDir = newFile.getAbsolutePath();
+                ps.pkg.applicationInfo.publicSourceDir = newFile.getAbsolutePath();
             } catch (IOException e) {
                 e.printStackTrace();
                 return -1;

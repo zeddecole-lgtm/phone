@@ -1,7 +1,31 @@
-# Independent cloning safety fix
+# Split APK cloning — implementation and limitations
 
-The package-name clone path previously used InstallOption.installBySystem(), retaining a dependency on the host app APK. It now uses installByStorage() so the base APK is copied into HiddenBox storage.
+The installed-app cloning path now uses the source app's **complete installed
+APK cluster** (base.apk + split APKs), parses it as a single Android package,
+checks ABI compatibility across all APKs, copies all code/resource APKs to
+HiddenBox-owned internal storage, extracts native libraries from each split,
+and advertises sandbox-private paths through ApplicationInfo and package
+resource loading. It also verifies the installed virtual package is listed.
 
-Apps with split APKs are explicitly rejected: this engine does not yet install split sets correctly. Do not uninstall the original app if cloning fails.
+Supported scenario: the APK cluster is readable from the host app's install
+directory, and the BlackBox PackageParser/virtual runtime supports the
+package. No APK file selection is required for installed-app cloning.
 
-This does not migrate application data, guarantee Google Play Services / Play Integrity support, or erase historical OS/cloud traces. Validate launching, signing in, and restarting the phone before removing any original application. KAST compatibility has not been verified on a device.
+**Not guaranteed**: the copied app's existing login or app data, Google Play
+Integrity, Firebase App Check, SafetyNet, DRM, hardware-backed authentication,
+push notification registration, payments, or device certification. A bank or
+payment app such as KAST may refuse to run inside a virtual environment even
+when every APK is copied correctly. No security checks are bypassed.
+
+**Required on-device acceptance test before deleting the host original:**
+1. Install this build as an upgrade (do not clear HiddenBox data).
+2. Tap "Choose from phone" and clone the desired installed application.
+3. Verify it appears in HiddenBox, launches, displays resources, and logs in
+   where supported.
+4. Fully restart the phone, then confirm that the sandbox copy still works.
+5. Only after independently confirming account access, consider removing
+   the original via Android Settings; always keep another account recovery
+   method available.
+
+The GitHub Actions workflow builds the project; a successful APK build is
+not the same as successful runtime testing.
