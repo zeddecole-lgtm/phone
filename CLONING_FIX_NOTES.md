@@ -49,3 +49,22 @@ not the same as successful runtime testing.
 
 Do not delete the original KAST installation without testing the independent
 copy, account access and reboot behavior.
+
+
+## Legitimate KAST App Check diagnostic and APK integrity
+
+- HiddenBox now verifies each cloned base/split APK using SHA-256 after
+  copying, not just file length. This verifies the sandbox APK bytes are
+  unchanged, without spoofing an attestation verdict.
+- New menu: "تشخيص خطأ KAST APPCHECK-00401". It reports the status of the
+  virtual package and its split APK files, private-storage placement, host
+  installation source, Android SDK version and Google package presence.
+- The user may **copy the report** or explicitly open an email composer
+  addressed to `support@kast.xyz`. Nothing is transmitted automatically.
+- The report deliberately excludes account data, private app files,
+  device identifiers, secrets, auth tokens and network traffic.
+- **Important limitation:** Play Integrity/App Check attestation belongs to
+  the Google Play/KAST trust chain. A cloned package running under HiddenBox's
+  host UID cannot obtain a guaranteed PLAY_RECOGNIZED verdict for KAST.
+  KAST must provide an officially supported verification or environment
+  policy for such a runtime. This change does not bypass their security.

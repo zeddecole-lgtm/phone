@@ -3,6 +3,10 @@ package top.niunaijun.blackbox.core.system.pm.installer;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 import top.niunaijun.blackbox.core.env.BEnvironment;
 import top.niunaijun.blackbox.core.system.pm.BPackageSettings;
@@ -12,6 +16,27 @@ import top.niunaijun.blackbox.utils.NativeUtils;
 
 
 public class CopyExecutor implements Executor {
+
+    /**
+     * Ensure copied APKs are byte-for-byte identical to the originals.
+     * Length-only checks can overlook in-place corruption, which would
+     * invalidate the APK signature and break genuine Play verification.
+     */
+    private static byte[] sha256(File file) throws IOException {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            try (InputStream input = new FileInputStream(file)) {
+                byte[] buffer = new byte[64 * 1024];
+                int n;
+                while ((n = input.read(buffer)) != -1) {
+                    digest.update(buffer, 0, n);
+                }
+            }
+            return digest.digest();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IOException("SHA-256 is unavailable", e);
+        }
+    }
 
     @Override
     public int exec(BPackageSettings ps, InstallOption option, int userId) {
@@ -39,6 +64,7 @@ public class CopyExecutor implements Executor {
                 if (expectedBytes <= 0) {
                     throw new IOException("Source APK is missing or empty.");
                 }
+                byte[] expectedDigest = sha256(origFile);
                 if (option.isFlag(InstallOption.FLAG_URI_FILE)) {
                     boolean b = FileUtils.renameTo(origFile, newFile);
                     if (!b) {
@@ -47,8 +73,10 @@ public class CopyExecutor implements Executor {
                 } else {
                     FileUtils.copyFile(origFile, newFile);
                 }
-                if (newFile.length() != expectedBytes || !newFile.setReadOnly()) {
-                    throw new IOException("Unable to make an independent copy of base.apk");
+                if (newFile.length() != expectedBytes ||
+                        !MessageDigest.isEqual(expectedDigest, sha256(newFile)) ||
+                        !newFile.setReadOnly()) {
+                    throw new IOException("The copied base APK differs from the original.");
                 }
                 // Keep split code and resources in the same private app directory.
                 // Never leave paths pointing to the host app after installation.
@@ -61,10 +89,13 @@ public class CopyExecutor implements Executor {
                                 || "base.apk".equals(name)) {
                             throw new IOException("Invalid split APK: " + name);
                         }
+                        byte[] splitDigest = sha256(source);
                         File destination = new File(BEnvironment.getAppDir(ps.pkg.packageName), name);
                         FileUtils.copyFile(source, destination);
-                        if (destination.length() != source.length() || !destination.setReadOnly()) {
-                            throw new IOException("Failed to copy split APK: " + name);
+                        if (destination.length() != source.length() ||
+                                !MessageDigest.isEqual(splitDigest, sha256(destination)) ||
+                                !destination.setReadOnly()) {
+                            throw new IOException("The copied split APK differs from its source: " + name);
                         }
                         copiedSplits[i] = destination.getAbsolutePath();
                     }

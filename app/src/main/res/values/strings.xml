@@ -40,14 +40,18 @@
     <string name="gms_required_body">لم تُثبّت خدمات Google داخل HiddenBox. يمكن محاولة نسخ المكونات الأصلية من الهاتف. هذا لا يضمن قبول KAST للبيئة الافتراضية أو نجاح App Check.</string>
     <string name="gms_try_install">محاولة تثبيت الخدمات</string>
     <string name="gms_continue">فتح التطبيق</string>
-    <string name="gms_status_warning">وجود خدمات Google داخل HiddenBox لا يعني أنها تعمل بالكامل ولا يضمن نجاح فحوص App Check أو Play Integrity. إذا استمر خطأ APPCHECK-00401 فجرب تثبيت KAST في ملف عمل Android حقيقي عبر Island، أو تواصل مع دعم KAST.</string>
+    <string name="gms_status_warning">وجود خدمات Google داخل HiddenBox لا يعني أنها تعمل بالكامل ولا يضمن نجاح فحوص App Check أو Play Integrity. إذا استمر خطأ APPCHECK-00401 افتح «تشخيص خطأ KAST» وأرسل التقرير للدعم لمعرفة ما إذا كان تشغيل KAST داخل HiddenBox معتمدًا.</string>
+    <string name="menu_kast_appcheck">تشخيص خطأ KAST APPCHECK-00401</string>
+    <string name="kast_check_title">تقرير توافق KAST</string>
+    <string name="kast_check_explanation">يتحقق التقرير من سلامة الملفات المستوردة ووجود خدمات Google ومصدر تثبيت التطبيق. لا يمكن لتطبيق HiddenBox الحصول على نتيجة Play Integrity السرية الخاصة بـKAST أو إجبار خادمها على قبول البيئة.</string>
+    <string name="kast_check_copy">نسخ التقرير</string>
+    <string name="kast_check_email">إرسال طلب للدعم</string>
+    <string name="kast_check_copied">تم نسخ التقرير بدون بيانات الحساب</string>
     <string name="gms_host_missing">جهازك نفسه لا يحتوي خدمات Google Play، لذا لا يمكن تثبيتها داخل البوكس. (يعمل هذا فقط على الأجهزة التي تملك خدمات Google.)</string>
 
     <!-- Help / limitations -->
     <string name="help_title">لماذا لا يعمل بعض التطبيقات؟</string>
-    <string name="help_body">معظم التطبيقات تعمل داخل البوكس، لكن بعضها لا يعمل بسبب حمايات داخل التطبيق نفسه، وليست عيباً في HiddenBox:\n\n• التطبيقات المصرفية والمالية (مثل KAST) تستخدم فحص السلامة App Check / Play Integrity الذي يرفض العمل داخل بيئة معزولة أو نسخة مستنسخة. لا يمكن تجاوز هذه الحماية.\n\n• بعض التطبيقات تحتاج خدمات Google Play. جرّب «تثبيت خدمات Google داخل البوكس» من القائمة — ويشترط أن تكون موجودة على جهازك أصلاً.\n\n• الاستيراد المباشر ينسخ base.apk وملفات Split APK إلى التخزين الداخلي، لكنه لا ينقل بيانات تسجيل الدخول أو شهادات سلامة الجهاز.
-
-• جرّب قائمة «تشخيص خدمات Google» لمعرفة المكونات الموجودة. إذا ظل APPCheck يفشل، جرّب تثبيت التطبيق مباشرة في ملف عمل Android بواسطة Island.</string>
+    <string name="help_body">يستورد HiddenBox تطبيقات الهاتف المثبتة بما فيها ملفات Split APK. لكن استيراد ملفات التطبيق لا ينقل بيانات الحساب أو هوية Android المعتمدة من Google.\n\nإذا ظهر KAST بخطأ APPCHECK-00401، استخدم «تشخيص خطأ KAST» للحصول على تقرير يوضح حالة ملفات التطبيق وخدمات Google وإرساله للدعم.\n\nلا يستطيع HiddenBox إصدار نتيجة Play Integrity باسم KAST أو تغيير قرار خوادم KAST. لا تحذف التطبيق الأصلي قبل التأكد من استمرار تسجيل الدخول بعد إعادة تشغيل الهاتف.</string>
     <string name="launch_fail_title">تعذّر تشغيل التطبيق</string>
     <string name="launch_fail_body">لم يبدأ %1$s. قد يكون التطبيق يحتاج خدمات Google Play، أو يرفض العمل داخل بيئة معزولة (فحص سلامة). راجع «لماذا لا يعمل بعض التطبيقات؟» من القائمة.</string>
     <string name="ok">حسناً</string>

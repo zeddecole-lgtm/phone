@@ -1,5 +1,9 @@
 package com.hiddenbox.app
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -163,6 +167,7 @@ class MainActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
         R.id.action_install_gms -> { installGms(); true }
         R.id.action_gms_diagnostics -> { showGoogleServicesStatus(); true }
+        R.id.action_kast_appcheck -> { showKastAppCheckDiagnostics(); true }
         R.id.action_help -> { showHelp(); true }
         else -> super.onOptionsItemSelected(item)
     }
@@ -173,6 +178,39 @@ class MainActivity : AppCompatActivity() {
             .setMessage(R.string.help_body)
             .setPositiveButton(R.string.ok, null)
             .show()
+    }
+
+    private fun showKastAppCheckDiagnostics() {
+        val report = KastAppCheckDiagnostics.collect(this)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.kast_check_title)
+            .setMessage(report + "\n\n" + getString(R.string.kast_check_explanation))
+            .setPositiveButton(R.string.kast_check_email) { _, _ ->
+                val intent = Intent(Intent.ACTION_SENDTO, Uri.parse(
+                    "mailto:${KastAppCheckDiagnostics.SUPPORT_ADDRESS}"
+                )).apply {
+                    putExtra(Intent.EXTRA_SUBJECT,
+                        "KAST ${KastAppCheckDiagnostics.ERROR_CODE} — supported environment")
+                    putExtra(Intent.EXTRA_TEXT,
+                        KastAppCheckDiagnostics.supportMessage(report))
+                }
+                try {
+                    startActivity(intent)
+                } catch (_: ActivityNotFoundException) {
+                    copyAppCheckReport(report)
+                }
+            }
+            .setNeutralButton(R.string.kast_check_copy) { _, _ ->
+                copyAppCheckReport(report)
+            }
+            .setNegativeButton(R.string.ok, null)
+            .show()
+    }
+
+    private fun copyAppCheckReport(report: String) {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("KAST App Check report", report))
+        toast(getString(R.string.kast_check_copied))
     }
 
     private fun showGoogleServicesStatus() {
