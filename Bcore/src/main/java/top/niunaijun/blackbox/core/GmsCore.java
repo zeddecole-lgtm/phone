@@ -21,6 +21,7 @@ public class GmsCore {
     public static final String GMS_PKG = "com.google.android.gms";
     public static final String GSF_PKG = "com.google.android.gsf";
     public static final String VENDING_PKG = "com.android.vending";
+    public static final String GOOGLE_LOGIN_PKG = "com.google.android.gsf.login";
 
     static {
         GOOGLE_APP.add(VENDING_PKG);
@@ -30,7 +31,7 @@ public class GmsCore {
 
         GOOGLE_SERVICE.add(GMS_PKG);
         GOOGLE_SERVICE.add(GSF_PKG);
-        GOOGLE_SERVICE.add("com.google.android.gsf.login");
+        GOOGLE_SERVICE.add(GOOGLE_LOGIN_PKG);
         GOOGLE_SERVICE.add("com.google.android.backuptransport");
         GOOGLE_SERVICE.add("com.google.android.backup");
         GOOGLE_SERVICE.add("com.google.android.configupdater");
@@ -92,6 +93,13 @@ public class GmsCore {
             if (!gsf.success) return gsf;
         }
 
+        // Some phone builds have a separate Google Account Login authenticator.
+        // Where present, it is needed in addition to GSF and Play services.
+        if (isPresentOnHost(GOOGLE_LOGIN_PKG)) {
+            InstallResult login = installComponent(GOOGLE_LOGIN_PKG, userId);
+            if (!login.success) return login;
+        }
+
         // GMS is mandatory: never report success when only optional packages
         // were copied into the sandbox.
         InstallResult gms = installComponent(GMS_PKG, userId);
@@ -100,7 +108,8 @@ public class GmsCore {
         // Play Store is optional for Google's background service availability.
         // It may require features the virtual runtime cannot provide.
         if (isPresentOnHost(VENDING_PKG)) {
-            installComponent(VENDING_PKG, userId);
+            InstallResult store = installComponent(VENDING_PKG, userId);
+            if (!store.success) return store;
         }
 
         if (!isInstalledGoogleService(userId)) {

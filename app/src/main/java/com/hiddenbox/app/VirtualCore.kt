@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import top.niunaijun.blackbox.BlackBoxCore
+import top.niunaijun.blackbox.fake.frameworks.BAccountManager
 import java.io.File
 
 /** One installed virtual app, as shown in the list. */
@@ -110,12 +111,17 @@ object VirtualCore {
         val gms = gmsInstalled()
         val gsf = runCatching { core.isInstalled("com.google.android.gsf", USER_ID) }.getOrDefault(false)
         val store = runCatching { core.isInstalled("com.android.vending", USER_ID) }.getOrDefault(false)
+        val googleAuthenticator = runCatching {
+            BAccountManager.get().getAuthenticatorTypes()
+                ?.any { it.type == "com.google" } ?: false
+        }.getOrDefault(false)
         val yes = "✓"
         val no = "✗"
         return "Google Play services on phone: ${if (host) yes else no}\n" +
                 "Google Play services inside HiddenBox: ${if (gms) yes else no}\n" +
                 "Google Services Framework inside HiddenBox: ${if (gsf) yes else no}\n" +
-                "Play Store inside HiddenBox: ${if (store) yes else no}"
+                "Play Store inside HiddenBox: ${if (store) yes else no}\n" +
+                "Google account authenticator registered: ${if (googleAuthenticator) yes else no}"
     }
 
     /**

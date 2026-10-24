@@ -57,12 +57,12 @@
     <string name="native_store_missing">متجر Google Play غير متاح داخل هذا الملف. أكمل تهيئة خدمات Google والحساب في إعدادات ملف العمل؛ لا يمكننا توفير بديل وهمي.</string>
     <string name="native_missing_kast">KAST ليس مثبتًا داخل هذا الملف.</string>
     <string name="native_launch_error">تعذر تشغيل KAST: %1$s</string>
-    <string name="menu_install_gms">تثبيت خدمات Google داخل البوكس</string>
+    <string name="menu_install_gms">فحص وإصلاح مكونات Google داخل البوكس</string>
     <string name="menu_help">لماذا لا يعمل بعض التطبيقات؟</string>
 
     <!-- Google Play services -->
     <string name="gms_installing">جارٍ تثبيت خدمات Google داخل البوكس…</string>
-    <string name="gms_done">تم تثبيت خدمات Google داخل البوكس</string>
+    <string name="gms_done">تم التحقق من وجود حزم Google المطلوبة. افحص حالة مصادقة Google من قائمة التشخيص؛ لا يضمن هذا نجاح تسجيل الدخول.</string>
     <string name="gms_already">خدمات Google مثبّتة مسبقاً داخل البوكس</string>
     <string name="gms_fail">تعذّر التثبيت: %1$s</string>
     <string name="menu_gms_status">تشخيص خدمات Google</string>
@@ -71,7 +71,7 @@
     <string name="gms_required_body">لم تُثبّت خدمات Google داخل HiddenBox. يمكن محاولة نسخ المكونات الأصلية من الهاتف. هذا لا يضمن قبول KAST للبيئة الافتراضية أو نجاح App Check.</string>
     <string name="gms_try_install">محاولة تثبيت الخدمات</string>
     <string name="gms_continue">فتح التطبيق</string>
-    <string name="gms_status_warning">وجود خدمات Google داخل HiddenBox لا يعني أنها تعمل بالكامل ولا يضمن نجاح فحوص App Check أو Play Integrity. إذا استمر خطأ APPCHECK-00401 افتح «تشخيص خطأ KAST» وأرسل التقرير للدعم لمعرفة ما إذا كان تشغيل KAST داخل HiddenBox معتمدًا.</string>
+    <string name="gms_status_warning">وجود حزم Google أو مُصادق الحساب داخل HiddenBox لا يضمن أن Google تقبل تسجيل الدخول. إن ظهر رمز عدم توافق من Google، فالخدمات قد ترفض البيئة الافتراضية. لا تستخدم رموز دخول وهمية. ولا يضمن هذا نجاح فحوص App Check أو Play Integrity. إذا استمر خطأ APPCHECK-00401 افتح «تشخيص خطأ KAST» وأرسل التقرير للدعم لمعرفة ما إذا كان تشغيل KAST داخل HiddenBox معتمدًا.</string>
     <string name="menu_kast_appcheck">تشخيص خطأ KAST APPCHECK-00401</string>
     <string name="kast_check_title">تقرير توافق KAST</string>
     <string name="kast_check_explanation">يتحقق التقرير من سلامة الملفات المستوردة ووجود خدمات Google ومصدر تثبيت التطبيق. لا يمكن لتطبيق HiddenBox الحصول على نتيجة Play Integrity السرية الخاصة بـKAST أو إجبار خادمها على قبول البيئة.</string>

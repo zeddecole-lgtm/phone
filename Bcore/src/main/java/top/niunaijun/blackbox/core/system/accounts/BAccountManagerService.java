@@ -46,6 +46,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -116,7 +117,9 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
 
     @Override
     public void onPackageInstalled(String packageName, int userId) {
-        loadAuthenticatorCache(packageName);
+        // The authenticator registry is global to the virtual package manager.
+        // Never replace it with only this newly installed package.
+        loadAuthenticatorCache(null);
     }
 
     private void loadAccounts() {
@@ -199,18 +202,15 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
 
     @Override
     public AuthenticatorDescription[] getAuthenticatorTypes(int userId) throws RemoteException {
-        
-        BUserAccounts userAccounts = getUserAccounts(userId);
+        // AccountManager must expose installed AUTHENTICATORS even when the
+        // user has zero accounts. Otherwise the first Google login is impossible.
         List<AuthenticatorDescription> authenticatorDescriptions = new ArrayList<>();
-        synchronized (userAccounts.lock) {
-            for (BAccount account : userAccounts.accounts) {
-                AuthenticatorInfo authenticatorInfo = mAuthenticatorCache.authenticators.get(account.account.type);
-                if (authenticatorInfo != null) {
-                    authenticatorDescriptions.add(authenticatorInfo.desc);
-                }
+        for (AuthenticatorInfo provider : mAuthenticatorCache.authenticators.values()) {
+            if (mPms.isInstalled(provider.serviceInfo.packageName, userId)) {
+                authenticatorDescriptions.add(provider.desc);
             }
         }
-        return authenticatorDescriptions.toArray(new AuthenticatorDescription[]{});
+        return authenticatorDescriptions.toArray(new AuthenticatorDescription[0]);
     }
 
     @Override
@@ -537,14 +537,16 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
                 authenticatorInfo != null && authenticatorInfo.desc.customTokens;
 
         
-        final String callerPkg = loginOptions.getString(AccountManager.KEY_ANDROID_PACKAGE_NAME);
+        // Android allows null options. Passing it through previously caused
+        // a NullPointerException before the authenticator could be contacted.
+        final Bundle authOptions = loginOptions == null ? new Bundle() : new Bundle(loginOptions);
+        final String callerPkg = authOptions.getString(AccountManager.KEY_ANDROID_PACKAGE_NAME);
 
-        
-        loginOptions.putInt(AccountManager.KEY_CALLER_UID, Binder.getCallingUid());
-        loginOptions.putInt(AccountManager.KEY_CALLER_PID, Binder.getCallingPid());
+        authOptions.putInt(AccountManager.KEY_CALLER_UID, Binder.getCallingUid());
+        authOptions.putInt(AccountManager.KEY_CALLER_PID, Binder.getCallingPid());
 
         if (notifyOnAuthFailure) {
-            loginOptions.putBoolean(AccountManagerCompat.KEY_NOTIFY_ON_FAILURE, true);
+            authOptions.putBoolean(AccountManagerCompat.KEY_NOTIFY_ON_FAILURE, true);
         }
 
         
@@ -591,11 +593,10 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
                 false ) {
             @Override
             protected String toDebugString(long now) {
-                if (loginOptions != null) loginOptions.keySet();
+                // Never log login bundles or account names: they may contain
+                // private authentication data supplied by Google.
                 return super.toDebugString(now) + ", getAuthToken"
-                        + ", " + account.toString()
-                        + ", authTokenType " + authTokenType
-                        + ", loginOptions " + loginOptions
+                        + ", accountType " + account.type
                         + ", notifyOnAuthFailure " + notifyOnAuthFailure;
             }
 
@@ -603,7 +604,7 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
             public void run() throws RemoteException {
                 
                 
-                mAuthenticator.getAuthToken(this, account, authTokenType, loginOptions);
+                mAuthenticator.getAuthToken(this, account, authTokenType, authOptions);
             }
 
             @Override
@@ -686,7 +687,11 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
 
     @Override
     public void addAccountAsUser(IAccountManagerResponse response, String accountType, String authTokenType, String[] requiredFeatures, boolean expectActivityLaunch, Bundle options, int userId) throws RemoteException {
-        
+        // This was a no-op: clients requesting Google addAccountAsUser never
+        // received a result. The virtual user is already supplied by our
+        // binder protocol, so use the normal account-addition flow.
+        addAccount(response, accountType, authTokenType, requiredFeatures,
+                expectActivityLaunch, options, userId);
     }
 
     @Override
@@ -1349,7 +1354,9 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
     }
 
     private static final class AuthenticatorCache {
-        final Map<String, AuthenticatorInfo> authenticators = new HashMap<>();
+        // Publish complete snapshots atomically so a caller cannot read an
+        // empty/partial registry while another package is being installed.
+        volatile Map<String, AuthenticatorInfo> authenticators = Collections.emptyMap();
     }
 
     private static AuthenticatorDescription parseAuthenticatorDescription(Resources resources, String packageName,
@@ -1374,14 +1381,16 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
     }
 
     public void loadAuthenticatorCache(String packageName) {
-        mAuthenticatorCache.authenticators.clear();
+        // A package installation must NOT remove the authenticators registered
+        // by previously installed packages (especially com.google).
+        // Rebuilding from every virtual package also handles updates/removals.
         Intent intent = new Intent(AccountManager.ACTION_AUTHENTICATOR_INTENT);
-        if (packageName != null) {
-            intent.setPackage(packageName);
-        }
+        Map<String, AuthenticatorInfo> refreshed = new HashMap<>();
         generateServicesMap(
                 mPms.queryIntentServices(intent, PackageManager.GET_META_DATA, BUserHandle.USER_ALL),
-                mAuthenticatorCache.authenticators, new RegisteredServicesParser());
+                refreshed, new RegisteredServicesParser());
+        mAuthenticatorCache.authenticators = Collections.unmodifiableMap(refreshed);
+        Slog.d(TAG, "Virtual authenticator types available: " + refreshed.size());
     }
 
     private void generateServicesMap(List<ResolveInfo> services, Map<String, AuthenticatorInfo> map,
@@ -1623,9 +1632,15 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
                 boolean needUpdate = mUpdateLastAuthenticatedTime
                         && (isSuccessfulConfirmCreds || isSuccessfulUpdateCredsOrAddAccount);
                 if (needUpdate || mAuthDetailsRequired) {
-                    boolean accountPresent = isAccountPresentForCaller(mAccountName, mAccountType, mAccounts.userId);
+                    // For addAccount() the session starts WITHOUT an account
+                    // name. Using mAccountName directly threw IllegalArgumentException
+                    // after a successful authentication response.
+                    String resolvedName = !TextUtils.isEmpty(mAccountName)
+                            ? mAccountName : result.getString(AccountManager.KEY_ACCOUNT_NAME);
+                    boolean accountPresent = !TextUtils.isEmpty(resolvedName)
+                            && isAccountPresentForCaller(resolvedName, mAccountType, mAccounts.userId);
                     if (needUpdate && accountPresent) {
-                        updateLastAuthenticatedTime(mAccounts, new Account(mAccountName, mAccountType));
+                        updateLastAuthenticatedTime(mAccounts, new Account(resolvedName, mAccountType));
                     }
                     if (mAuthDetailsRequired) {
                         long lastAuthenticatedTime = -1;

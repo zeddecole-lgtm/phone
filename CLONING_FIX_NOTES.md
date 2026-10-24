@@ -112,3 +112,37 @@ Installation choices within the work profile:
   requires a persistent, securely stored signing keystore.
 - Do not remove the original KAST instance until a legitimate sign-in and a
   reboot test succeed in the native Android profile.
+
+
+## Fix: virtual Google Play account discovery / login pipeline
+
+The user reported that the cloned Play Store can open but cannot sign in.
+
+Confirmed source-level bugs fixed:
+1. `BAccountManagerService.onPackageInstalled` used to replace the complete
+   authenticator registry with services from the last installed package only.
+   It now rebuilds the registry from all installed virtual packages.
+2. `getAuthenticatorTypes` used to enumerate only types of accounts already
+   present in the database, so the first sign-in could not discover a Google
+   account authenticator. It now lists registered providers, subject to
+   installation in the requested virtual user.
+3. `addAccountAsUser` returned without invoking the provider or callback.
+4. `getAuthToken` dereferenced nullable options and logged sensitive login
+   bundles. Both are fixed.
+5. A successful account-add response with an initially absent session account
+   name could attempt to instantiate `new Account(null, type)` and crash.
+6. Authenticator cache snapshots are replaced atomically, and an installed
+   `com.google.android.gsf.login` package is included when supplied by the
+   host phone. Re-running the GMS action now checks for missing packages rather
+   than stopping when GMS is already present.
+
+New Google component diagnosis includes whether a `com.google` authenticator
+is discovered. **This is a registration check, not confirmation that an
+authenticator can establish a secure Google login session**.
+
+**Unresolved runtime compatibility:** Google sign-in may still reject a
+third-party virtual Android application runtime because the OS user ID, service
+security model, and attestation are not identical to a real Android process
+registered under its own package. No tokens, certificates or device integrity
+claims are forged, and no account data is copied from the host user.
+The user must test Play Store sign-in on the Android device after upgrading.

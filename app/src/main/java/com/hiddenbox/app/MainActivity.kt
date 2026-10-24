@@ -234,10 +234,9 @@ class MainActivity : AppCompatActivity() {
                 .show()
             return
         }
-        if (VirtualCore.gmsInstalled()) {
-            if (afterSuccess != null) afterSuccess() else showGoogleServicesStatus()
-            return
-        }
+        // Even if GMS is already present, retry the missing Google packages.
+        // A registered GMS APK alone does not imply an operational account
+        // authenticator or Google Play login session.
         binding.progress.visibility = View.VISIBLE
         toast(getString(R.string.gms_installing))
         lifecycleScope.launch {
