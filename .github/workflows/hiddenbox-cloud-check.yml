@@ -1,0 +1,38 @@
+name: HiddenBox Cloud static checks
+
+on:
+  push:
+    paths:
+      - "cloud/**"
+      - ".github/workflows/hiddenbox-cloud-check.yml"
+  pull_request:
+    paths:
+      - "cloud/**"
+      - ".github/workflows/hiddenbox-cloud-check.yml"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bash syntax
+        run: bash -n cloud/setup.sh cloud/check.sh cloud/entrypoint.sh
+      - name: Compose configuration
+        run: |
+          cp cloud/.env.example cloud/.env
+          docker compose --project-directory cloud --env-file cloud/.env -f cloud/compose.yml config --quiet
+          rm cloud/.env
+      - name: Validate private interfaces and Google Play image
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          compose = Path("cloud/compose.yml").read_text()
+          dockerfile = Path("cloud/Dockerfile").read_text()
+          assert "6080:6080" not in compose and "5900:5900" not in compose
+          assert "5554:5554" not in compose and "5555:5555" not in compose
+          assert "google_apis_playstore;x86_64" in dockerfile
+          assert "android-data:/home/android/.android" in compose
+          assert "basic_auth" in Path("cloud/Caddyfile").read_text()
+          print("Cloud configuration: checks passed")
+          PY

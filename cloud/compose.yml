@@ -1,0 +1,42 @@
+name: hiddenbox-cloud
+
+services:
+  emulator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    devices:
+      - /dev/kvm:/dev/kvm
+    group_add:
+      - "${KVM_GID:?Run setup.sh first}"
+    environment:
+      TZ: "${TZ:-UTC}"
+    shm_size: "2gb"
+    volumes:
+      - android-data:/home/android/.android
+    expose:
+      - "6080"
+    init: true
+    stop_grace_period: 90s
+    restart: unless-stopped
+  gateway:
+    image: caddy:2
+    environment:
+      CLOUD_DOMAIN: "${CLOUD_DOMAIN:?Run setup.sh first}"
+      CLOUD_USER: "${CLOUD_USER:?Run setup.sh first}"
+      CLOUD_PASSWORD_HASH: "${CLOUD_PASSWORD_HASH:?Run setup.sh first}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - emulator
+    restart: unless-stopped
+
+volumes:
+  android-data:
+  caddy-data:
+  caddy-config:

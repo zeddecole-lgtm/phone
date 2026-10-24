@@ -1,0 +1,14 @@
+# The only publicly exposed service: TLS plus password protected noVNC.
+{$CLOUD_DOMAIN} {
+    encode gzip zstd
+    basic_auth {
+        {$CLOUD_USER} {$CLOUD_PASSWORD_HASH}
+    }
+    header {
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "no-referrer"
+        Cache-Control "no-store"
+        X-Frame-Options "DENY"
+    }
+    reverse_proxy emulator:6080
+}
