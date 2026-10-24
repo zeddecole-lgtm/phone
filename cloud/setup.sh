@@ -16,7 +16,7 @@ read -r -s -p "Password (at least 16 characters): " password
 echo
 [[ ${#password} -ge 16 ]] || fail "Password too short"
 echo "Creating bcrypt hash with Caddy"
-hash="$(docker run --rm -i caddy:2 caddy hash-password --algorithm bcrypt < <(printf "%s" "$password"))" || fail "Could not create password hash"
+hash="$(docker run --rm -i caddy:2 caddy hash-password --algorithm bcrypt < <(printf "%s\n" "$password"))" || fail "Could not create password hash"
 unset password
 [[ "$hash" == \$2* ]] || fail "Unexpected bcrypt hash"
 gid="$(stat -c "%g" /dev/kvm)"

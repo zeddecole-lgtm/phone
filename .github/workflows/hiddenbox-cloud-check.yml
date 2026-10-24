@@ -25,7 +25,7 @@ jobs:
           rm cloud/.env
       - name: Validate private interfaces and Google Play image
         run: |
-          python3 - <<\x27PY\x27
+          python3 - <<'PY'
           from pathlib import Path
           compose = Path("cloud/compose.yml").read_text()
           dockerfile = Path("cloud/Dockerfile").read_text()
