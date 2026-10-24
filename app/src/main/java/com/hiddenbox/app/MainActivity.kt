@@ -168,6 +168,10 @@ class MainActivity : AppCompatActivity() {
         R.id.action_install_gms -> { installGms(); true }
         R.id.action_gms_diagnostics -> { showGoogleServicesStatus(); true }
         R.id.action_kast_appcheck -> { showKastAppCheckDiagnostics(); true }
+        R.id.action_native_profile -> {
+            startActivity(Intent(this, NativeProfileActivity::class.java))
+            true
+        }
         R.id.action_help -> { showHelp(); true }
         else -> super.onOptionsItemSelected(item)
     }

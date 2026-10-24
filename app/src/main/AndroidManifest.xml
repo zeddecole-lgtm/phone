@@ -33,6 +33,45 @@
             </intent-filter>
         </activity>
 
+        <!-- Optional native Android work profile. Requires the user's explicit
+             consent; the OS installs and runs KAST as a real package there. -->
+        <receiver
+            android:name=".NativeProfileAdminReceiver"
+            android:permission="android.permission.BIND_DEVICE_ADMIN"
+            android:exported="true">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/native_profile_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+                <action android:name="android.app.action.PROFILE_PROVISIONING_COMPLETE" />
+            </intent-filter>
+        </receiver>
+
+        <activity
+            android:name=".NativeProfileActivity"
+            android:exported="false" />
+
+        <!-- The platform may request these callbacks on newer Android builds. -->
+        <activity
+            android:name=".NativeGetProvisioningModeActivity"
+            android:exported="true"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <intent-filter>
+                <action android:name="android.app.action.GET_PROVISIONING_MODE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".NativePolicyComplianceActivity"
+            android:exported="true"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <intent-filter>
+                <action android:name="android.app.action.ADMIN_POLICY_COMPLIANCE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <!-- Decoy game shown when the cover answer is entered. -->
         <activity
             android:name=".GameActivity"

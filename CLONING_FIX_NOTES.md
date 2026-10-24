@@ -68,3 +68,47 @@ copy, account access and reboot behavior.
   host UID cannot obtain a guaranteed PLAY_RECOGNIZED verdict for KAST.
   KAST must provide an officially supported verification or environment
   policy for such a runtime. This change does not bypass their security.
+
+
+## Native Android managed-profile mode for Play Integrity-sensitive apps
+
+An optional **Native Android** mode is accessible in HiddenBox's overflow menu
+("تشغيل KAST في Android الحقيقي"). The user explicitly approves Android's
+standard managed-profile provisioning screen. A minimal DeviceAdminReceiver
+sets the profile's name, enables genuine Google Play system apps where
+available, and enables the profile.
+
+Within the work profile, HiddenBox does NOT initialize BlackBox virtualization
+hooks: KAST is installed and launched by the real Android PackageManager under
+its own application UID and original signing certificate. The work user has
+isolated application data and can survive uninstalling KAST only from the
+personal profile.
+
+Primary profile -> CrossProfileApps.startMainActivity -> the HiddenBox launcher
+in the work profile -> NativeProfileActivity. The latter launches KAST's native
+launcher activity, never loading it in HiddenBox's own process.
+
+Installation choices within the work profile:
+- Official Google Play listing (recommended), with the user supplying any
+  necessary Google-account consent.
+- DevicePolicyManager.installExistingPackage() if Android permits it. This API
+  normally requires device/user affiliation, so personal BYOD profiles may
+  reject it. A failed transfer offers the official Play route; no spoofing.
+
+**Limitations and safety**
+- Does NOT promise KAST Play Integrity acceptance: only Google's official
+  attestation and KAST's server can determine it. A supported, certified phone
+  is still required.
+- Android may reject provisioning if a managed profile already exists or the
+  device administrator restricts user provisioning. The app does not replace
+  or delete an existing work profile.
+- The user must consent to provisioning and sign in to Play when needed.
+- Native profiles are visible to Android. The feature does not promise the
+  app leaves zero trace in Android settings.
+- Debug builds produced on separate CI runners may have different signing keys.
+  An installed profile-owner app **must be updated with the same signing key**.
+  During development, the user may need to remove the test work profile
+  before installing an incompatible debug build. Production deployment
+  requires a persistent, securely stored signing keystore.
+- Do not remove the original KAST instance until a legitimate sign-in and a
+  reboot test succeed in the native Android profile.

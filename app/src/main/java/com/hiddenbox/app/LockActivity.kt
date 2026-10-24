@@ -28,6 +28,14 @@ class LockActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // The managed-profile copy of HiddenBox acts as a native Android
+        // launcher/administrator, not a BlackBox container. Only the original
+        // personal-profile instance shows the disguise lock.
+        if (NativeProfileManager.isOurWorkProfile(this)) {
+            startActivity(Intent(this, NativeProfileActivity::class.java))
+            finish()
+            return
+        }
         binding = ActivityLockBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
