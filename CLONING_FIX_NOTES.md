@@ -170,3 +170,32 @@ a real Google account or measure KAST Play Integrity.
 
 This remains a compatibility attempt, not a claim that a Google-secured
 app supports a third-party virtual Android process.
+
+
+## Follow-up: verified account creation and separate virtual-user security
+
+Added fixes for the Google Play Store sign-in loop:
+
+- The virtual account database did not initialize `BUserAccounts.userId`
+  when creating or restoring users, causing all new sessions to default to
+  virtual user 0. Now it normalizes the user ID from the map key.
+- Requests for all account types previously merged account records across
+  **every** virtual user; they now return only the requested user's records.
+- `getAccountsForPackage` and `getAccountsByTypeForPackage` previously
+  returned no Google accounts because newly added accounts have no visibility
+  records by default. Google account visibility is granted by default only
+  to the real authenticator package and the installed GMS/GSF/Play Store
+  clients in the *same virtual user*. An explicit visibility record still
+  takes precedence. Unrelated apps remain blocked.
+- The completed first-account callback now persists its account identity in
+  the correct virtual user's database. Intermediate login Intents do not
+  create accounts; password and auth tokens are not added here.
+- Account authentication metadata is parsed using public Android XML
+  attributes instead of hidden `com.android.internal.R.styleable` reflection,
+  and XML parsers are closed in every case.
+- The session no longer injects a synthetic null ClipData into login Intents.
+- Added JUnit regression tests for account completion and the restrictive
+  Google client visibility policy.
+
+These changes fix several deterministic source-level issues, but do NOT
+assert Google or KAST accepts third-party virtual Android process identities.
