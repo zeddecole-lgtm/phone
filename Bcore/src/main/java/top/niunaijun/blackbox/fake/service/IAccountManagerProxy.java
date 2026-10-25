@@ -320,8 +320,9 @@ public class IAccountManagerProxy extends BinderInvocationStub {
 
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            BAccountManager.get().accountAuthenticated((Account) args[0]);
-            return 0;
+            // Android IAccountManager.accountAuthenticated returns boolean.
+            // Preserve the real result; returning Integer causes ClassCastException.
+            return BAccountManager.get().accountAuthenticated((Account) args[0]);
         }
     }
 
@@ -353,7 +354,7 @@ public class IAccountManagerProxy extends BinderInvocationStub {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             return BAccountManager.get().addAccountExplicitlyWithVisibility((Account) args[0],
                     (String) args[1],
-                    (Bundle) args[2],
+                    (String) args[2],
                     (Map) args[3]
             );
         }

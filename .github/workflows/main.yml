@@ -18,6 +18,14 @@ jobs:
           java-version: '21'
           cache: 'gradle'
 
+      - name: Test actual account proxy Java contracts
+        run: |
+          set -o pipefail
+          python3 tools/test_account_proxy_contract.py \
+            Bcore/src/main/java/top/niunaijun/blackbox/fake/service/IAccountManagerProxy.java \
+            Bcore/src/main/java/top/niunaijun/blackbox/fake/frameworks/BAccountManager.java \
+            | tee account-proxy-contract-results.txt
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
 
@@ -29,6 +37,17 @@ jobs:
 
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: HiddenBox-test-results
+          path: |
+            account-proxy-contract-results.txt
+            Bcore/build/test-results/testDebugUnitTest/*.xml
+            Bcore/build/reports/tests/testDebugUnitTest/
+          if-no-files-found: warn
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
