@@ -60,6 +60,7 @@ import black.com.android.internal.RstyleableStatic;
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.core.env.BEnvironment;
 import top.niunaijun.blackbox.core.system.BProcessManagerService;
+import top.niunaijun.blackbox.core.system.am.BActivityManagerService;
 import top.niunaijun.blackbox.core.system.ISystemService;
 import top.niunaijun.blackbox.core.system.ProcessRecord;
 import top.niunaijun.blackbox.core.system.pm.BPackageManagerService;
@@ -1354,9 +1355,13 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
     }
 
     private static final class AuthenticatorCache {
-        // Publish complete snapshots atomically so a caller cannot read an
-        // empty/partial registry while another package is being installed.
-        volatile Map<String, AuthenticatorInfo> authenticators = Collections.emptyMap();
+        final AuthenticatorRegistry<AuthenticatorInfo> registry = new AuthenticatorRegistry<>();
+        volatile Map<String, AuthenticatorInfo> authenticators = registry.snapshot();
+
+        void publish(Map<String, AuthenticatorInfo> refreshed) {
+            registry.replaceAll(refreshed);
+            authenticators = registry.snapshot();
+        }
     }
 
     private static AuthenticatorDescription parseAuthenticatorDescription(Resources resources, String packageName,
@@ -1389,7 +1394,7 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
         generateServicesMap(
                 mPms.queryIntentServices(intent, PackageManager.GET_META_DATA, BUserHandle.USER_ALL),
                 refreshed, new RegisteredServicesParser());
-        mAuthenticatorCache.authenticators = Collections.unmodifiableMap(refreshed);
+        mAuthenticatorCache.publish(refreshed);
         Slog.d(TAG, "Virtual authenticator types available: " + refreshed.size());
     }
 
@@ -1440,6 +1445,7 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
         private int mNumErrors = 0;
 
         IAccountAuthenticator mAuthenticator = null;
+        private boolean mServiceBound = false;
 
         private final boolean mStripAuthTokenFromResult;
         protected final BUserAccounts mAccounts;
@@ -1561,9 +1567,15 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
         }
 
         private void unbind() {
-            if (mAuthenticator != null) {
-                mAuthenticator = null;
-                mContext.unbindService(this);
+            mAuthenticator = null;
+            if (mServiceBound) {
+                mServiceBound = false;
+                try {
+                    mContext.unbindService(this);
+                } catch (IllegalArgumentException ignored) {
+                    // Android may have dropped the connection while shutting
+                    // down the virtual authenticator process.
+                }
             }
         }
 
@@ -1746,44 +1758,51 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
 
         
         private boolean bindToAuthenticator(String authenticatorType) {
-            AuthenticatorInfo authenticatorInfo = mAuthenticatorCache.authenticators.get(authenticatorType);
-            if (authenticatorInfo == null) {
-                if (Log.isLoggable(TAG, Log.VERBOSE)) {
-                    Log.v(TAG, "there is no authenticator for " + authenticatorType
-                            + ", bailing out");
-                }
+            AuthenticatorInfo provider = mAuthenticatorCache.authenticators.get(authenticatorType);
+            if (provider == null) {
+                Slog.w(TAG, "No virtual authenticator for type: " + authenticatorType);
+                return false;
+            }
+            if (!mPms.isInstalled(provider.serviceInfo.packageName, mAccounts.userId)) {
+                Slog.w(TAG, "Authenticator package is not installed in the requested virtual user.");
                 return false;
             }
 
+            // This service runs in HiddenBox's host process. Directly calling
+            // mContext.bindService() on the original component would bind the
+            // *real phone's* authenticator (if any), not the virtual one.
+            // Bind through BlackBox's existing proxy service dispatcher
+            // instead, so the provider runs in its own virtual user context.
+            Intent virtualService = new Intent(AccountManager.ACTION_AUTHENTICATOR_INTENT);
+            ComponentName virtualComponent = new ComponentName(
+                    provider.serviceInfo.packageName, provider.serviceInfo.name);
+            virtualService.setComponent(virtualComponent);
+            virtualService.putExtra("_B_|_UserId", mAccounts.userId);
 
-
-
-
-
-
-
-            Intent intent = new Intent();
-            intent.setAction(AccountManager.ACTION_AUTHENTICATOR_INTENT);
-            ComponentName componentName = new ComponentName(authenticatorInfo.serviceInfo.packageName, authenticatorInfo.serviceInfo.name);
-            intent.setComponent(componentName);
-            
-            intent.putExtra("_B_|_UserId", mAccounts.userId);
-
-            if (Log.isLoggable(TAG, Log.VERBOSE)) {
-                Log.v(TAG, "performing bindService to " + componentName);
-            }
-            int flags = Context.BIND_AUTO_CREATE;
-
-
-
-            if (!mContext.bindService(intent, this, flags)) {
-                if (Log.isLoggable(TAG, Log.VERBOSE)) {
-                    Log.v(TAG, "bindService to " + componentName + " failed");
+            try {
+                Intent proxyIntent = BActivityManagerService.get().bindService(
+                        virtualService, null, null, mAccounts.userId);
+                if (proxyIntent == null || proxyIntent.getComponent() == null
+                        || !BlackBoxCore.getHostPkg().equals(
+                                proxyIntent.getComponent().getPackageName())
+                        || virtualComponent.equals(proxyIntent.getComponent())) {
+                    Slog.w(TAG, "Virtual account authenticator proxy is unavailable.");
+                    return false;
                 }
+
+                mServiceBound = mContext.bindService(
+                        proxyIntent, this, Context.BIND_AUTO_CREATE);
+                if (!mServiceBound) {
+                    Slog.w(TAG, "Android did not bind the virtual authenticator proxy.");
+                }
+                return mServiceBound;
+            } catch (Exception e) {
+                // No account passwords, login options, tokens or email
+                // addresses should ever enter these diagnostic messages.
+                Slog.e(TAG, "Virtual authenticator binding failed: "
+                        + e.getClass().getSimpleName());
                 return false;
             }
-
-            return true;
         }
     }
 

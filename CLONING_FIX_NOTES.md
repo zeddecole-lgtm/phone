@@ -146,3 +146,27 @@ security model, and attestation are not identical to a real Android process
 registered under its own package. No tokens, certificates or device integrity
 claims are forged, and no account data is copied from the host user.
 The user must test Play Store sign-in on the Android device after upgrading.
+
+
+## Google login: use the virtual authenticator service, not the host one
+
+The account-manager server was binding the original Google authenticator
+component directly with the real Android `Context.bindService`. The server
+runs under HiddenBox's **host** package, so such a bind could reach the
+personal-profile Google provider or fail due to permissions. The virtual
+account never received its own provider connection.
+
+Now the authenticator is resolved via `BActivityManagerService` to
+BlackBox's own proxy-service intent for the requested *virtual user*, and
+the actual Android bind is made only to that proxy. If the proxy cannot
+be constructed, the operation fails instead of binding to the wrong user.
+The service connection is unbound safely even when the authenticator
+disconnects before returning a callback.
+
+The virtual authenticator map is published in immutable snapshots using
+`AuthenticatorRegistry`, with four JVM regression tests. GitHub Actions
+must run these tests and produce a debug APK, but they cannot authenticate
+a real Google account or measure KAST Play Integrity.
+
+This remains a compatibility attempt, not a claim that a Google-secured
+app supports a third-party virtual Android process.
