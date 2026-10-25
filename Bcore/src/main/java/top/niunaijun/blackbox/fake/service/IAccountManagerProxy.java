@@ -354,7 +354,7 @@ public class IAccountManagerProxy extends BinderInvocationStub {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             return BAccountManager.get().addAccountExplicitlyWithVisibility((Account) args[0],
                     (String) args[1],
-                    (String) args[2],
+                    (Bundle) args[2],
                     (Map) args[3]
             );
         }
