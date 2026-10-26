@@ -745,7 +745,18 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
 
     @Override
     public void confirmCredentialsAsUser(IAccountManagerResponse response, Account account, Bundle options, boolean expectActivityLaunch, int userId) throws RemoteException {
-        
+        if (response == null) throw new IllegalArgumentException("response is null");
+        if (account == null) throw new IllegalArgumentException("account is null");
+
+        BUserAccounts accounts = getUserAccounts(userId);
+        new Session(accounts, response, account.type, expectActivityLaunch,
+                true /* stripAuthTokenFromResult */, account.name,
+                true /* authDetailsRequired */, true /* updateLastAuthenticatedTime */) {
+            @Override
+            public void run() throws RemoteException {
+                mAuthenticator.confirmCredentials(this, account, options);
+            }
+        }.bind();
     }
 
     @Override

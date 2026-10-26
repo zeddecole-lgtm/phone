@@ -26,6 +26,11 @@ jobs:
             Bcore/src/main/java/top/niunaijun/blackbox/fake/frameworks/BAccountManager.java \
             | tee account-proxy-contract-results.txt
 
+      - name: Test virtual confirmCredentials callback routing
+        run: |
+          set -o pipefail
+          python3 tools/test_confirm_credentials_contract.py             Bcore/src/main/java/top/niunaijun/blackbox/core/system/accounts/BAccountManagerService.java             | tee confirm-credentials-contract-results.txt
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
 
@@ -45,6 +50,7 @@ jobs:
           name: HiddenBox-test-results
           path: |
             account-proxy-contract-results.txt
+            confirm-credentials-contract-results.txt
             Bcore/build/test-results/testDebugUnitTest/*.xml
             Bcore/build/reports/tests/testDebugUnitTest/
           if-no-files-found: warn

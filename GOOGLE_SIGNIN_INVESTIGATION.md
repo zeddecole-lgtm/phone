@@ -87,3 +87,26 @@ Google credentials or security-verdict bypass is part of this change.
 This is a narrowly reproduced Java bridge fix, NOT a verified KAST solution.
 Keep the development pull request in draft. Do not ask the user to replace
 or clear their existing installation merely because this test passed.
+ 
+## Additional callback repair (2026-10-26)
+
+The production virtual service method confirmCredentialsAsUser previously did
+nothing and left its IAccountManagerResponse unresolved. AOSP delegates this
+call through a Session to IAccountAuthenticator.confirmCredentials. This change
+restores that delegation for the specified virtual user with the correct
+session flags and validates required arguments. The auth provider's actual
+result is not faked or replaced.
+
+A JVM contract script extracts the *actual method* from production source.
+Tests check callback/account validation and routing to the provider with
+unchanged account/options, virtual user id and session flags. The empty
+original method does not pass these checks. CI runs this test before building
+Android; see the latest workflow run for results.
+
+This is NOT a real Google sign-in test. No hardware Android login, Binder
+lifecycle, Google Play sign-in UI, or KAST app integrity was verified.
+
+AOSP reference:
+https://android.googlesource.com/platform/frameworks/base/+/ec417e4cc082e1734e7184c51762d21a430c0b38/services/core/java/com/android/server/accounts/AccountManagerService.java
+
+Previous green CI: https://github.com/zeddecole-lgtm/phone/actions/runs/40185852270
