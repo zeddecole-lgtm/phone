@@ -65,6 +65,7 @@ public class PackageManagerCompat {
         pi.sharedUserId = p.mSharedUserId;
         pi.sharedUserLabel = p.mSharedUserLabel;
         pi.applicationInfo = generateApplicationInfo(p, flags, state, userId);
+        pi.splitNames = pi.applicationInfo == null ? null : pi.applicationInfo.splitNames;
 
         pi.firstInstallTime = firstInstallTime;
         pi.lastUpdateTime = lastUpdateTime;
@@ -304,6 +305,10 @@ public class PackageManagerCompat {
         ai.processName = BPackageManagerService.fixProcessName(p.packageName, ai.packageName);
         ai.publicSourceDir = sourceDir;
         ai.sourceDir = sourceDir;
+        // These are sandbox-private split APK paths, never the removed host paths.
+        ai.splitSourceDirs = p.applicationInfo.splitSourceDirs;
+        ai.splitPublicSourceDirs = p.applicationInfo.splitPublicSourceDirs;
+        ai.splitNames = p.applicationInfo.splitNames;
         ai.uid = p.mExtras.appId;
 
 
@@ -369,6 +374,12 @@ public class PackageManagerCompat {
         if (ps != null) {
             AssetManager assets = BRAssetManager.get()._new();
             BRAssetManager.get(assets).addAssetPath(ps.pkg.baseCodePath);
+            String[] splits = ps.pkg.applicationInfo.splitPublicSourceDirs;
+            if (splits != null) {
+                for (String split : splits) {
+                    BRAssetManager.get(assets).addAssetPath(split);
+                }
+            }
             Resources hostRes = context.getResources();
             return new Resources(assets, hostRes.getDisplayMetrics(), hostRes.getConfiguration());
         }

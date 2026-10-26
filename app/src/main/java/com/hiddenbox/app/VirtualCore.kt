@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import top.niunaijun.blackbox.BlackBoxCore
+import top.niunaijun.blackbox.fake.frameworks.BAccountManager
 import java.io.File
 
 /** One installed virtual app, as shown in the list. */
@@ -71,9 +72,9 @@ object VirtualCore {
 
     /**
      * Clone an app that is already installed on the phone into the sandbox,
-     * by its package name. The engine reads the real app's base APK from the
-     * system (ApplicationInfo.sourceDir) and installs a copy inside the box.
-     * The base APK is copied into private storage, but private app data is not migrated.
+     * by its package name. The engine reads the real base and split APKs
+     * from the system and copies them into independent private box storage.
+     * Application data and security attestations are not migrated.
      * Always verify the virtual copy after a reboot before uninstalling the original.
      * @return null on success, or an error message.
      */
@@ -101,8 +102,27 @@ object VirtualCore {
     /** Whether the host phone itself has Google Play services available. */
     fun hostHasGms(): Boolean = runCatching { core.isSupportGms }.getOrDefault(false)
 
-    /** Whether Google Play services are already installed inside the sandbox. */
+    /** Presence of a virtual package is not proof that Play services are running. */
     fun gmsInstalled(): Boolean = runCatching { core.isInstallGms(USER_ID) }.getOrDefault(false)
+
+    /** Report separate host and virtual package states, without faking integrity. */
+    fun googleServicesStatus(): String {
+        val host = hostHasGms()
+        val gms = gmsInstalled()
+        val gsf = runCatching { core.isInstalled("com.google.android.gsf", USER_ID) }.getOrDefault(false)
+        val store = runCatching { core.isInstalled("com.android.vending", USER_ID) }.getOrDefault(false)
+        val googleAuthenticator = runCatching {
+            BAccountManager.get().getAuthenticatorTypes()
+                ?.any { it.type == "com.google" } ?: false
+        }.getOrDefault(false)
+        val yes = "✓"
+        val no = "✗"
+        return "Google Play services on phone: ${if (host) yes else no}\n" +
+                "Google Play services inside HiddenBox: ${if (gms) yes else no}\n" +
+                "Google Services Framework inside HiddenBox: ${if (gsf) yes else no}\n" +
+                "Play Store inside HiddenBox: ${if (store) yes else no}\n" +
+                "Google account authenticator registered: ${if (googleAuthenticator) yes else no}"
+    }
 
     /**
      * Install Google Play services into the sandbox by cloning them from the

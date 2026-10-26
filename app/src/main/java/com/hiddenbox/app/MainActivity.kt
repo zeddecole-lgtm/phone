@@ -1,5 +1,9 @@
 package com.hiddenbox.app
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -127,6 +131,24 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun launch(app: VApp) {
+        // KAST requires Google Play services. Offer genuine dependency
+        // installation before attempting to launch it without those services.
+        if (app.packageName == "com.kastfinance.app" && !VirtualCore.gmsInstalled()) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.gms_required_title)
+                .setMessage(R.string.gms_required_body)
+                .setPositiveButton(R.string.gms_try_install) { _, _ ->
+                    installGms { launchDirect(app) }
+                }
+                .setNeutralButton(R.string.gms_continue) { _, _ -> launchDirect(app) }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+            return
+        }
+        launchDirect(app)
+    }
+
+    private fun launchDirect(app: VApp) {
         if (!VirtualCore.launch(app.packageName)) {
             AlertDialog.Builder(this)
                 .setTitle(R.string.launch_fail_title)
@@ -144,6 +166,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
         R.id.action_install_gms -> { installGms(); true }
+        R.id.action_gms_diagnostics -> { showGoogleServicesStatus(); true }
+        R.id.action_kast_appcheck -> { showKastAppCheckDiagnostics(); true }
+        R.id.action_native_profile -> {
+            startActivity(Intent(this, NativeProfileActivity::class.java))
+            true
+        }
         R.id.action_help -> { showHelp(); true }
         else -> super.onOptionsItemSelected(item)
     }
@@ -156,25 +184,83 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun installGms() {
+    private fun showKastAppCheckDiagnostics() {
+        val report = KastAppCheckDiagnostics.collect(this)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.kast_check_title)
+            .setMessage(report + "\n\n" + getString(R.string.kast_check_explanation))
+            .setPositiveButton(R.string.kast_check_email) { _, _ ->
+                val intent = Intent(Intent.ACTION_SENDTO, Uri.parse(
+                    "mailto:${KastAppCheckDiagnostics.SUPPORT_ADDRESS}"
+                )).apply {
+                    putExtra(Intent.EXTRA_SUBJECT,
+                        "KAST ${KastAppCheckDiagnostics.ERROR_CODE} — supported environment")
+                    putExtra(Intent.EXTRA_TEXT,
+                        KastAppCheckDiagnostics.supportMessage(report))
+                }
+                try {
+                    startActivity(intent)
+                } catch (_: ActivityNotFoundException) {
+                    copyAppCheckReport(report)
+                }
+            }
+            .setNeutralButton(R.string.kast_check_copy) { _, _ ->
+                copyAppCheckReport(report)
+            }
+            .setNegativeButton(R.string.ok, null)
+            .show()
+    }
+
+    private fun copyAppCheckReport(report: String) {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("KAST App Check report", report))
+        toast(getString(R.string.kast_check_copied))
+    }
+
+    private fun showGoogleServicesStatus() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.gms_status_title)
+            .setMessage(VirtualCore.googleServicesStatus() + "\n\n" + getString(R.string.gms_status_warning))
+            .setPositiveButton(R.string.ok, null)
+            .show()
+    }
+
+    private fun installGms(afterSuccess: (() -> Unit)? = null) {
         if (!VirtualCore.hostHasGms()) {
             AlertDialog.Builder(this)
+                .setTitle(R.string.gms_status_title)
                 .setMessage(R.string.gms_host_missing)
                 .setPositiveButton(R.string.ok, null)
                 .show()
             return
         }
-        if (VirtualCore.gmsInstalled()) {
-            toast(getString(R.string.gms_already))
-            return
-        }
+        // Even if GMS is already present, retry the missing Google packages.
+        // A registered GMS APK alone does not imply an operational account
+        // authenticator or Google Play login session.
         binding.progress.visibility = View.VISIBLE
         toast(getString(R.string.gms_installing))
         lifecycleScope.launch {
             val err = withContext(Dispatchers.IO) { VirtualCore.installGms() }
             binding.progress.visibility = View.GONE
-            toast(if (err == null) getString(R.string.gms_done) else getString(R.string.gms_fail, err))
-            refresh()
+            if (err != null) {
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle(R.string.gms_status_title)
+                    .setMessage(getString(R.string.gms_fail, err) + "\n\n" +
+                            VirtualCore.googleServicesStatus())
+                    .setPositiveButton(R.string.ok, null)
+                    .show()
+            } else {
+                refresh()
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle(R.string.gms_status_title)
+                    .setMessage(getString(R.string.gms_done) + "\n\n" +
+                            getString(R.string.gms_status_warning))
+                    .setPositiveButton(if (afterSuccess == null) getString(R.string.ok)
+                        else getString(R.string.gms_continue)) { _, _ ->
+                        afterSuccess?.invoke()
+                    }
+                    .show()
+            }
         }
     }
 

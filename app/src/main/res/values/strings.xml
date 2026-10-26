@@ -26,19 +26,63 @@
     <string name="in_box_badge">✓ في البوكس</string>
 
     <!-- Overflow menu -->
-    <string name="menu_install_gms">تثبيت خدمات Google داخل البوكس</string>
+    <string name="menu_native_profile">تشغيل KAST في Android الحقيقي</string>
+    <string name="native_mode_title">مساحة Android الأصلية</string>
+    <string name="native_mode_description">هذا الوضع لا يستخدم المحرك الافتراضي BlackBox. ينشئ Android ملف مستخدم مستقلًا بموافقتك، ويُثبّت KAST فيه كتطبيق حقيقي مع خدمات Google التابعة لذلك الملف.</string>
+    <string name="native_available">المساحة متاحة</string>
+    <string name="native_available_explainer">افتح المساحة الأصلية لتثبيت KAST وتشغيله. لا تعتمد على استنساخه داخل العملية الافتراضية.</string>
+    <string name="native_open_space">فتح مساحة Android</string>
+    <string name="native_not_created">لم تُنشأ مساحة Android الأصلية بعد</string>
+    <string name="native_old_android">تحتاج واجهة التحكم المدمجة Android 9 أو أحدث.</string>
+    <string name="native_no_feature">هذا الجهاز لا يدعم ملفات العمل المُدارة في Android.</string>
+    <string name="native_provision_unavailable">Android لا يسمح حاليًا بإنشاء ملف مستخدم مُدار جديد. قد يكون هناك ملف عمل موجود أو تمنع سياسة الجهاز إنشاء ملف آخر.</string>
+    <string name="native_create">إنشاء مساحة Android أصلية</string>
+    <string name="native_owner_consent">سيطلب Android موافقتك على إنشاء ملف عمل مستقل تُديره نسخة HiddenBox داخله. لا تمنح التطبيق سيطرة على ملفك الشخصي، لكن مدير الملف يستطيع إدارة تطبيقات وبيانات ملف العمل. لا تفعل هذا إذا كانت لديك بيانات مهمة في ملف عمل آخر. تنبيه: تحديث مدير ملف العمل يحتاج نسخة موقعة بنفس مفتاح التثبيت؛ بناء GitHub التجريبي قد يستخدم مفتاحًا مختلفًا في كل تشغيل. قد تضطر إلى إزالة ملف العمل لإعادة تثبيت تحديث غير متوافق. هل تريد المتابعة؟</string>
+    <string name="native_provision_cancelled">ألغي إعداد مساحة Android أو لم يسمح النظام بإنشائها.</string>
+    <string name="native_provision_pending">وافق Android على بدء إنشاء المساحة. ارجع إلى هنا واضغط تحديث بعد اكتمال الإعداد.</string>
+    <string name="native_provision_error">تعذر فتح إعداد Android: %1$s</string>
+    <string name="native_refresh">تحديث الحالة</string>
+    <string name="native_open_failed">تعذر فتح نسخة HiddenBox في ملف Android. تحقق من إكمال الإعداد وتمكين ملف العمل.</string>
+    <string name="native_work_ready">تعمل الآن داخل مساحة Android الأصلية</string>
+    <string name="native_status">KAST مثبت: %1$s\nخدمات Google Play: %2$s\nمتجر Google Play: %3$s</string>
+    <string name="native_launch_kast">فتح KAST الحقيقي</string>
+    <string name="native_install_existing">محاولة نقل KAST المثبت من الهاتف</string>
+    <string name="native_install_play">تثبيت KAST من Google Play</string>
+    <string name="native_play_recommendation">التثبيت الرسمي من متجر Google Play داخل هذه المساحة يعطي التطبيق هوية Android الأصلية، لكنه لا يضمن قبول خادم KAST لكل متطلبات Play Integrity.</string>
+    <string name="native_integrity_warning">إذا ظهر APPCHECK-00401 هنا أيضًا، فملف Android نفسه لا يستوفي سياسة KAST، أو توجد مشكلة تحتاج فحصًا من الجهة المطوّرة. لا يمكن حل رفض الخادم بإرجاع رموز وهمية.</string>
+    <string name="native_store">فتح متجر التطبيقات في المساحة</string>
+    <string name="native_install_restricted_title">منع Android نقل التطبيق</string>
+    <string name="native_install_restricted">تثبيت تطبيق موجود من ملف شخصي آخر محمي بصلاحيات Android وتوفره فقط لبعض الأجهزة والملفات التابعة إداريًا. استخدم متجر Google Play الرسمي داخل هذه المساحة بدلًا من استيراد APK يدويًا.</string>
+    <string name="native_install_success">نقل Android نسخة التطبيق إلى المساحة بنجاح. جرّب فتح KAST.</string>
+    <string name="native_store_missing">متجر Google Play غير متاح داخل هذا الملف. أكمل تهيئة خدمات Google والحساب في إعدادات ملف العمل؛ لا يمكننا توفير بديل وهمي.</string>
+    <string name="native_missing_kast">KAST ليس مثبتًا داخل هذا الملف.</string>
+    <string name="native_launch_error">تعذر تشغيل KAST: %1$s</string>
+    <string name="menu_install_gms">فحص وإصلاح مكونات Google داخل البوكس</string>
     <string name="menu_help">لماذا لا يعمل بعض التطبيقات؟</string>
 
     <!-- Google Play services -->
     <string name="gms_installing">جارٍ تثبيت خدمات Google داخل البوكس…</string>
-    <string name="gms_done">تم تثبيت خدمات Google داخل البوكس</string>
+    <string name="gms_done">تم التحقق من وجود حزم Google المطلوبة. افحص حالة مصادقة Google من قائمة التشخيص؛ لا يضمن هذا نجاح تسجيل الدخول.</string>
     <string name="gms_already">خدمات Google مثبّتة مسبقاً داخل البوكس</string>
     <string name="gms_fail">تعذّر التثبيت: %1$s</string>
+    <string name="menu_gms_status">تشخيص خدمات Google</string>
+    <string name="gms_status_title">حالة خدمات Google</string>
+    <string name="gms_required_title">KAST يحتاج خدمات Google</string>
+    <string name="gms_required_body">لم تُثبّت خدمات Google داخل HiddenBox. يمكن محاولة نسخ المكونات الأصلية من الهاتف. هذا لا يضمن قبول KAST للبيئة الافتراضية أو نجاح App Check.</string>
+    <string name="gms_try_install">محاولة تثبيت الخدمات</string>
+    <string name="gms_continue">فتح التطبيق</string>
+    <string name="gms_status_warning">وجود حزم Google أو مُصادق الحساب داخل HiddenBox لا يضمن أن Google تقبل تسجيل الدخول. إن ظهر رمز عدم توافق من Google، فالخدمات قد ترفض البيئة الافتراضية. لا تستخدم رموز دخول وهمية. ولا يضمن هذا نجاح فحوص App Check أو Play Integrity. إذا استمر خطأ APPCHECK-00401 افتح «تشخيص خطأ KAST» وأرسل التقرير للدعم لمعرفة ما إذا كان تشغيل KAST داخل HiddenBox معتمدًا.</string>
+    <string name="menu_kast_appcheck">تشخيص خطأ KAST APPCHECK-00401</string>
+    <string name="kast_check_title">تقرير توافق KAST</string>
+    <string name="kast_check_explanation">يتحقق التقرير من سلامة الملفات المستوردة ووجود خدمات Google ومصدر تثبيت التطبيق. لا يمكن لتطبيق HiddenBox الحصول على نتيجة Play Integrity السرية الخاصة بـKAST أو إجبار خادمها على قبول البيئة.</string>
+    <string name="kast_check_copy">نسخ التقرير</string>
+    <string name="kast_check_email">إرسال طلب للدعم</string>
+    <string name="kast_check_copied">تم نسخ التقرير بدون بيانات الحساب</string>
     <string name="gms_host_missing">جهازك نفسه لا يحتوي خدمات Google Play، لذا لا يمكن تثبيتها داخل البوكس. (يعمل هذا فقط على الأجهزة التي تملك خدمات Google.)</string>
 
     <!-- Help / limitations -->
     <string name="help_title">لماذا لا يعمل بعض التطبيقات؟</string>
-    <string name="help_body">معظم التطبيقات تعمل داخل البوكس، لكن بعضها لا يعمل بسبب حمايات داخل التطبيق نفسه، وليست عيباً في HiddenBox:\n\n• التطبيقات المصرفية والمالية (مثل KAST) تستخدم فحص السلامة App Check / Play Integrity الذي يرفض العمل داخل بيئة معزولة أو نسخة مستنسخة. لا يمكن تجاوز هذه الحماية.\n\n• بعض التطبيقات تحتاج خدمات Google Play. جرّب «تثبيت خدمات Google داخل البوكس» من القائمة — ويشترط أن تكون موجودة على جهازك أصلاً.\n\n• التطبيقات الموزّعة كحزم مقسّمة (Split APKs) قد تعمل جزئياً لأن الاستنساخ ينسخ الحزمة الأساسية فقط.</string>
+    <string name="help_body">يستورد HiddenBox تطبيقات الهاتف المثبتة بما فيها ملفات Split APK. لكن استيراد ملفات التطبيق لا ينقل بيانات الحساب أو هوية Android المعتمدة من Google.\n\nإذا ظهر KAST بخطأ APPCHECK-00401، استخدم «تشخيص خطأ KAST» للحصول على تقرير يوضح حالة ملفات التطبيق وخدمات Google وإرساله للدعم.\n\nلا يستطيع HiddenBox إصدار نتيجة Play Integrity باسم KAST أو تغيير قرار خوادم KAST. لا تحذف التطبيق الأصلي قبل التأكد من استمرار تسجيل الدخول بعد إعادة تشغيل الهاتف.</string>
     <string name="launch_fail_title">تعذّر تشغيل التطبيق</string>
     <string name="launch_fail_body">لم يبدأ %1$s. قد يكون التطبيق يحتاج خدمات Google Play، أو يرفض العمل داخل بيئة معزولة (فحص سلامة). راجع «لماذا لا يعمل بعض التطبيقات؟» من القائمة.</string>
     <string name="ok">حسناً</string>

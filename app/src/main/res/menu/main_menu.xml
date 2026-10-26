@@ -6,6 +6,18 @@
         android:title="@string/menu_install_gms"
         app:showAsAction="never" />
     <item
+        android:id="@+id/action_gms_diagnostics"
+        android:title="@string/menu_gms_status"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_native_profile"
+        android:title="@string/menu_native_profile"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_kast_appcheck"
+        android:title="@string/menu_kast_appcheck"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_help"
         android:title="@string/menu_help"
         app:showAsAction="never" />

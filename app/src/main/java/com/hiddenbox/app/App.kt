@@ -3,6 +3,9 @@ package com.hiddenbox.app
 import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
+import android.app.admin.DevicePolicyManager
+import android.os.Build
+import android.os.UserManager
 import android.util.Log
 import top.niunaijun.blackbox.BlackBoxCore
 import top.niunaijun.blackbox.app.configuration.ClientConfiguration
@@ -29,6 +32,10 @@ class App : Application() {
     override fun attachBaseContext(base: Context) {
         super.attachBaseContext(base)
         context = base
+        // Do not initialize BlackBox hooks inside a real work profile.
+        // The profile's Android PackageManager, UID, Google services and
+        // application processes must be left untouched.
+        if (isNativeManagedProfile(base)) return
         try {
             // Must run before the engine attaches.
             BlackBoxCore.get().closeCodeInit()
@@ -53,8 +60,22 @@ class App : Application() {
         }
     }
 
+    private fun isNativeManagedProfile(ctx: Context): Boolean {
+        return try {
+            val dpm = ctx.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            if (dpm.isProfileOwnerApp(ctx.packageName)) return true
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                val um = ctx.getSystemService(Context.USER_SERVICE) as UserManager
+                um.isManagedProfile
+            } else false
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
+        if (isNativeManagedProfile(this)) return
         try {
             BlackBoxCore.get().doCreate()
         } catch (e: Throwable) {

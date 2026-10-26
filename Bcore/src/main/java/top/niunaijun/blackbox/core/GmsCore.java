@@ -3,21 +3,25 @@ package top.niunaijun.blackbox.core;
 import android.content.pm.PackageManager;
 
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.Set;
 
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.entity.pm.InstallResult;
 
-
+/**
+ * Best-effort installation of genuine Google packages from the host phone.
+ *
+ * This cannot make a virtual environment Play-certified and cannot satisfy
+ * hardware-backed attestation or a third-party app's App Check policy.
+ */
 public class GmsCore {
-    private static final String TAG = "GmsCore";
+    private static final Set<String> GOOGLE_APP = new HashSet<>();
+    private static final Set<String> GOOGLE_SERVICE = new HashSet<>();
 
-    private static final HashSet<String> GOOGLE_APP = new HashSet<>();
-    private static final HashSet<String> GOOGLE_SERVICE = new HashSet<>();
     public static final String GMS_PKG = "com.google.android.gms";
     public static final String GSF_PKG = "com.google.android.gsf";
     public static final String VENDING_PKG = "com.android.vending";
+    public static final String GOOGLE_LOGIN_PKG = "com.google.android.gsf.login";
 
     static {
         GOOGLE_APP.add(VENDING_PKG);
@@ -25,10 +29,9 @@ public class GmsCore {
         GOOGLE_APP.add("com.google.android.wearable.app");
         GOOGLE_APP.add("com.google.android.wearable.app.cn");
 
-        
         GOOGLE_SERVICE.add(GMS_PKG);
         GOOGLE_SERVICE.add(GSF_PKG);
-        GOOGLE_SERVICE.add("com.google.android.gsf.login");
+        GOOGLE_SERVICE.add(GOOGLE_LOGIN_PKG);
         GOOGLE_SERVICE.add("com.google.android.backuptransport");
         GOOGLE_SERVICE.add("com.google.android.backup");
         GOOGLE_SERVICE.add("com.google.android.configupdater");
@@ -44,57 +47,86 @@ public class GmsCore {
         return GOOGLE_SERVICE.contains(packageName);
     }
 
-    public static boolean isGoogleAppOrService(String str) {
-        return GOOGLE_APP.contains(str) || GOOGLE_SERVICE.contains(str);
+    public static boolean isGoogleAppOrService(String packageName) {
+        return GOOGLE_APP.contains(packageName) || GOOGLE_SERVICE.contains(packageName);
     }
 
-    private static InstallResult installPackages(Set<String> list, int userId) {
-        BlackBoxCore blackBoxCore = BlackBoxCore.get();
-        for (String packageName : list) {
-            if (blackBoxCore.isInstalled(packageName, userId)) {
-                continue;
-            }
-            try {
-                BlackBoxCore.getContext().getPackageManager().getApplicationInfo(packageName, 0);
-            } catch (PackageManager.NameNotFoundException e) {
-                
-                continue;
-            }
-            InstallResult installResult = blackBoxCore.installPackageAsUser(packageName, userId);
-            if (!installResult.success) {
-                return installResult.installError("Google component " + packageName + ": " + installResult.msg);
-            }
+    private static boolean isPresentOnHost(String packageName) {
+        try {
+            BlackBoxCore.getContext().getPackageManager().getApplicationInfo(packageName, 0);
+            return true;
+        } catch (PackageManager.NameNotFoundException ignored) {
+            return false;
+        }
+    }
+
+    private static InstallResult installComponent(String packageName, int userId) {
+        BlackBoxCore core = BlackBoxCore.get();
+        if (core.isInstalled(packageName, userId)) {
+            return new InstallResult();
+        }
+        if (!isPresentOnHost(packageName)) {
+            return new InstallResult().installError(packageName + " is not installed on the phone.");
+        }
+        InstallResult installed = core.installPackageAsUser(packageName, userId);
+        if (!installed.success) {
+            return new InstallResult().installError(packageName + ": "
+                    + (installed.msg == null ? "unknown installation failure" : installed.msg));
+        }
+        if (!core.isInstalled(packageName, userId)) {
+            return new InstallResult().installError(packageName
+                    + ": the package manager did not register the installed copy.");
         }
         return new InstallResult();
     }
 
-    private static void uninstallPackages(Set<String> list, int userId) {
-        BlackBoxCore blackBoxCore = BlackBoxCore.get();
-        for (String packageName : list) {
-            blackBoxCore.uninstallPackageAsUser(packageName, userId);
-        }
-    }
-
     public static InstallResult installGApps(int userId) {
-        Set<String> googleApps = new LinkedHashSet<>();
-        // Core framework first, then Play services, then Play Store and optional packages.
-        googleApps.add(GSF_PKG);
-        googleApps.add(GMS_PKG);
-        googleApps.add(VENDING_PKG);
-        googleApps.addAll(GOOGLE_SERVICE);
-        googleApps.addAll(GOOGLE_APP);
-
-        InstallResult installResult = installPackages(googleApps, userId);
-        if (!installResult.success) {
-            // Do not delete previously working Google components on partial failure.
-            return installResult;
+        if (!isSupportGms()) {
+            return new InstallResult().installError(
+                    "Google Play services is unavailable on this phone.");
         }
-        return installResult;
+
+        // Google Services Framework, when present, should be installed first.
+        // Some host ROMs ship Play services without a separately visible GSF.
+        if (isPresentOnHost(GSF_PKG)) {
+            InstallResult gsf = installComponent(GSF_PKG, userId);
+            if (!gsf.success) return gsf;
+        }
+
+        // Some phone builds have a separate Google Account Login authenticator.
+        // Where present, it is needed in addition to GSF and Play services.
+        if (isPresentOnHost(GOOGLE_LOGIN_PKG)) {
+            InstallResult login = installComponent(GOOGLE_LOGIN_PKG, userId);
+            if (!login.success) return login;
+        }
+
+        // GMS is mandatory: never report success when only optional packages
+        // were copied into the sandbox.
+        InstallResult gms = installComponent(GMS_PKG, userId);
+        if (!gms.success) return gms;
+
+        // Play Store is optional for Google's background service availability.
+        // It may require features the virtual runtime cannot provide.
+        if (isPresentOnHost(VENDING_PKG)) {
+            InstallResult store = installComponent(VENDING_PKG, userId);
+            if (!store.success) return store;
+        }
+
+        if (!isInstalledGoogleService(userId)) {
+            return new InstallResult().installError(
+                    "Google Play services was not registered in the sandbox.");
+        }
+        return new InstallResult();
     }
 
     public static void uninstallGApps(int userId) {
-        uninstallPackages(GOOGLE_SERVICE, userId);
-        uninstallPackages(GOOGLE_APP, userId);
+        BlackBoxCore core = BlackBoxCore.get();
+        for (String pkg : GOOGLE_SERVICE) {
+            if (core.isInstalled(pkg, userId)) core.uninstallPackageAsUser(pkg, userId);
+        }
+        for (String pkg : GOOGLE_APP) {
+            if (core.isInstalled(pkg, userId)) core.uninstallPackageAsUser(pkg, userId);
+        }
     }
 
     public static void remove(String packageName) {
@@ -102,14 +134,8 @@ public class GmsCore {
         GOOGLE_APP.remove(packageName);
     }
 
-
     public static boolean isSupportGms() {
-        try {
-            BlackBoxCore.getPackageManager().getPackageInfo(GMS_PKG, 0);
-            return true;
-        } catch (PackageManager.NameNotFoundException ignored) {
-        }
-        return false;
+        return isPresentOnHost(GMS_PKG);
     }
 
     public static boolean isInstalledGoogleService(int userId) {

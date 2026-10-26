@@ -8,7 +8,6 @@ import android.accounts.IAccountAuthenticator;
 import android.accounts.IAccountAuthenticatorResponse;
 import android.accounts.IAccountManagerResponse;
 import android.annotation.SuppressLint;
-import android.content.ClipData;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -17,7 +16,6 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.content.res.Resources;
-import android.content.res.TypedArray;
 import android.content.res.XmlResourceParser;
 import android.os.Binder;
 import android.os.Bundle;
@@ -46,6 +44,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -54,11 +53,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import black.com.android.internal.BRRstyleable;
-import black.com.android.internal.RstyleableStatic;
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.core.env.BEnvironment;
 import top.niunaijun.blackbox.core.system.BProcessManagerService;
+import top.niunaijun.blackbox.core.system.am.BActivityManagerService;
 import top.niunaijun.blackbox.core.system.ISystemService;
 import top.niunaijun.blackbox.core.system.ProcessRecord;
 import top.niunaijun.blackbox.core.system.pm.BPackageManagerService;
@@ -116,7 +114,9 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
 
     @Override
     public void onPackageInstalled(String packageName, int userId) {
-        loadAuthenticatorCache(packageName);
+        // The authenticator registry is global to the virtual package manager.
+        // Never replace it with only this newly installed package.
+        loadAuthenticatorCache(null);
     }
 
     private void loadAccounts() {
@@ -138,7 +138,12 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
             synchronized (mUserAccountsMap) {
                 mUserAccountsMap.clear();
                 for (Integer key : accountsMap.keySet()) {
-                    mUserAccountsMap.put(key, accountsMap.get(key));
+                    if (key == null || accountsMap.get(key) == null) continue;
+                    BUserAccounts restored = accountsMap.get(key);
+                    // Old versions did not initialize userId and persisted 0
+                    // for every newly-created virtual user account.
+                    restored.userId = key;
+                    mUserAccountsMap.put(key, restored);
                 }
             }
         } catch (Exception e) {
@@ -199,18 +204,15 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
 
     @Override
     public AuthenticatorDescription[] getAuthenticatorTypes(int userId) throws RemoteException {
-        
-        BUserAccounts userAccounts = getUserAccounts(userId);
+        // AccountManager must expose installed AUTHENTICATORS even when the
+        // user has zero accounts. Otherwise the first Google login is impossible.
         List<AuthenticatorDescription> authenticatorDescriptions = new ArrayList<>();
-        synchronized (userAccounts.lock) {
-            for (BAccount account : userAccounts.accounts) {
-                AuthenticatorInfo authenticatorInfo = mAuthenticatorCache.authenticators.get(account.account.type);
-                if (authenticatorInfo != null) {
-                    authenticatorDescriptions.add(authenticatorInfo.desc);
-                }
+        for (AuthenticatorInfo provider : mAuthenticatorCache.authenticators.values()) {
+            if (mPms.isInstalled(provider.serviceInfo.packageName, userId)) {
+                authenticatorDescriptions.add(provider.desc);
             }
         }
-        return authenticatorDescriptions.toArray(new AuthenticatorDescription[]{});
+        return authenticatorDescriptions.toArray(new AuthenticatorDescription[0]);
     }
 
     @Override
@@ -219,14 +221,15 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
         BUserAccounts userAccounts = getUserAccounts(userId);
         List<Account> accounts = new ArrayList<>();
         synchronized (userAccounts.lock) {
-            for (BAccount account : userAccounts.accounts) {
-                Integer visibility = account.visibility.get(packageName);
-                if (visibility != null && visibility == AccountManager.VISIBILITY_VISIBLE) {
-                    accounts.add(account.account);
+            for (BAccount entry : userAccounts.accounts) {
+                int visibility = resolveAccountVisibility(entry.account, packageName, userAccounts);
+                if (visibility == AccountManager.VISIBILITY_VISIBLE
+                        || visibility == AccountManager.VISIBILITY_USER_MANAGED_VISIBLE) {
+                    accounts.add(entry.account);
                 }
             }
         }
-        return accounts.toArray(new Account[]{});
+        return accounts.toArray(new Account[0]);
     }
 
     @Override
@@ -236,9 +239,10 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
         List<Account> accounts = new ArrayList<>();
         synchronized (userAccounts.lock) {
             for (BAccount account : userAccounts.accounts) {
-                if (account.account.type.equals(type)) {
-                    Integer visibility = account.visibility.get(packageName);
-                    if (visibility != null && visibility == AccountManager.VISIBILITY_VISIBLE) {
+                if (type == null || account.account.type.equals(type)) {
+                    int visibility = resolveAccountVisibility(account.account, packageName, userAccounts);
+                    if (visibility == AccountManager.VISIBILITY_VISIBLE
+                            || visibility == AccountManager.VISIBILITY_USER_MANAGED_VISIBLE) {
                         accounts.add(account.account);
                     }
                 }
@@ -253,7 +257,7 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
         List<Account> accounts = new ArrayList<>();
         synchronized (userAccounts.lock) {
             for (BAccount account : userAccounts.accounts) {
-                if (account.account.type.equals(accountType)) {
+                if (accountType == null || account.account.type.equals(accountType)) {
                     accounts.add(account.account);
                 }
             }
@@ -537,14 +541,16 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
                 authenticatorInfo != null && authenticatorInfo.desc.customTokens;
 
         
-        final String callerPkg = loginOptions.getString(AccountManager.KEY_ANDROID_PACKAGE_NAME);
+        // Android allows null options. Passing it through previously caused
+        // a NullPointerException before the authenticator could be contacted.
+        final Bundle authOptions = loginOptions == null ? new Bundle() : new Bundle(loginOptions);
+        final String callerPkg = authOptions.getString(AccountManager.KEY_ANDROID_PACKAGE_NAME);
 
-        
-        loginOptions.putInt(AccountManager.KEY_CALLER_UID, Binder.getCallingUid());
-        loginOptions.putInt(AccountManager.KEY_CALLER_PID, Binder.getCallingPid());
+        authOptions.putInt(AccountManager.KEY_CALLER_UID, Binder.getCallingUid());
+        authOptions.putInt(AccountManager.KEY_CALLER_PID, Binder.getCallingPid());
 
         if (notifyOnAuthFailure) {
-            loginOptions.putBoolean(AccountManagerCompat.KEY_NOTIFY_ON_FAILURE, true);
+            authOptions.putBoolean(AccountManagerCompat.KEY_NOTIFY_ON_FAILURE, true);
         }
 
         
@@ -591,11 +597,10 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
                 false ) {
             @Override
             protected String toDebugString(long now) {
-                if (loginOptions != null) loginOptions.keySet();
+                // Never log login bundles or account names: they may contain
+                // private authentication data supplied by Google.
                 return super.toDebugString(now) + ", getAuthToken"
-                        + ", " + account.toString()
-                        + ", authTokenType " + authTokenType
-                        + ", loginOptions " + loginOptions
+                        + ", accountType " + account.type
                         + ", notifyOnAuthFailure " + notifyOnAuthFailure;
             }
 
@@ -603,7 +608,7 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
             public void run() throws RemoteException {
                 
                 
-                mAuthenticator.getAuthToken(this, account, authTokenType, loginOptions);
+                mAuthenticator.getAuthToken(this, account, authTokenType, authOptions);
             }
 
             @Override
@@ -686,7 +691,11 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
 
     @Override
     public void addAccountAsUser(IAccountManagerResponse response, String accountType, String authTokenType, String[] requiredFeatures, boolean expectActivityLaunch, Bundle options, int userId) throws RemoteException {
-        
+        // This was a no-op: clients requesting Google addAccountAsUser never
+        // received a result. The virtual user is already supplied by our
+        // binder protocol, so use the normal account-addition flow.
+        addAccount(response, accountType, authTokenType, requiredFeatures,
+                expectActivityLaunch, options, userId);
     }
 
     @Override
@@ -736,7 +745,18 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
 
     @Override
     public void confirmCredentialsAsUser(IAccountManagerResponse response, Account account, Bundle options, boolean expectActivityLaunch, int userId) throws RemoteException {
-        
+        if (response == null) throw new IllegalArgumentException("response is null");
+        if (account == null) throw new IllegalArgumentException("account is null");
+
+        BUserAccounts accounts = getUserAccounts(userId);
+        new Session(accounts, response, account.type, expectActivityLaunch,
+                true /* stripAuthTokenFromResult */, account.name,
+                true /* authDetailsRequired */, true /* updateLastAuthenticatedTime */) {
+            @Override
+            public void run() throws RemoteException {
+                mAuthenticator.confirmCredentials(this, account, options);
+            }
+        }.bind();
     }
 
     @Override
@@ -977,7 +997,7 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
         synchronized (accounts.lock) {
             BAccount bAccount = accounts.getAccount(account);
             if (bAccount != null) {
-                Slog.d(TAG, "skipping since insertExtra failed for key " + account);
+                Slog.d(TAG, "Account already exists in this virtual user");
                 return false;
             }
             bAccount = accounts.addAccount(account);
@@ -1024,24 +1044,11 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
                 return filterAccounts(userAccounts, Arrays.copyOf(accounts, accounts.length), callingPackage, includeManagedNotVisible);
             }
         } else {
-            int totalLength = 0;
+            // The former implementation combined every virtual user's account
+            // database. Keep accounts isolated to the requested user.
             Account[] accountsArray;
-            synchronized (mUserAccountsMap) {
-                for (BUserAccounts bUserAccounts : mUserAccountsMap.values()) {
-                    totalLength += bUserAccounts.toAccounts().length;
-                }
-
-                if (totalLength == 0) {
-                    return EMPTY_ACCOUNT_ARRAY;
-                }
-                accountsArray = new Account[totalLength];
-                totalLength = 0;
-                for (BUserAccounts bUserAccounts : mUserAccountsMap.values()) {
-                    Account[] accountsOfType = bUserAccounts.toAccounts();
-                    System.arraycopy(accountsOfType, 0, accountsArray, totalLength,
-                            accountsOfType.length);
-                    totalLength += accountsOfType.length;
-                }
+            synchronized (userAccounts.lock) {
+                accountsArray = userAccounts.toAccounts();
             }
             return filterAccounts(userAccounts, accountsArray, callingPackage,
                     includeManagedNotVisible);
@@ -1084,6 +1091,18 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
         int visibility = getAccountVisibilityFromCache(account, packageName, accounts);
         if (AccountManager.VISIBILITY_UNDEFINED != visibility) {
             return visibility;
+        }
+        // Only the installed authenticator and Google's actual core account
+        // clients receive the default Google-account visibility needed for
+        // first sign-in. Unrelated sandbox apps remain NOT_VISIBLE.
+        if (mPms.isInstalled(packageName, accounts.userId)) {
+            AuthenticatorInfo registered = mAuthenticatorCache.authenticators.get(account.type);
+            if ((registered != null
+                    && packageName.equals(registered.serviceInfo.packageName))
+                    || GoogleAccountVisibilityPolicy.isTrustedGoogleClient(
+                            account.type, packageName)) {
+                return AccountManager.VISIBILITY_VISIBLE;
+            }
         }
         return AccountManager.VISIBILITY_NOT_VISIBLE;
     }
@@ -1161,9 +1180,14 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
             BUserAccounts bUserAccounts = mUserAccountsMap.get(userId);
             if (bUserAccounts == null) {
                 bUserAccounts = new BUserAccounts();
+                bUserAccounts.userId = userId;
                 mUserAccountsMap.put(userId, bUserAccounts);
+            } else if (bUserAccounts.userId != userId) {
+                // Repair stale database entries without moving any accounts
+                // between virtual users.
+                bUserAccounts.userId = userId;
             }
-            return mUserAccountsMap.get(userId);
+            return bUserAccounts;
         }
     }
 
@@ -1349,64 +1373,86 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
     }
 
     private static final class AuthenticatorCache {
-        final Map<String, AuthenticatorInfo> authenticators = new HashMap<>();
+        final AuthenticatorRegistry<AuthenticatorInfo> registry = new AuthenticatorRegistry<>();
+        volatile Map<String, AuthenticatorInfo> authenticators = registry.snapshot();
+
+        void publish(Map<String, AuthenticatorInfo> refreshed) {
+            registry.replaceAll(refreshed);
+            authenticators = registry.snapshot();
+        }
     }
 
-    private static AuthenticatorDescription parseAuthenticatorDescription(Resources resources, String packageName,
-                                                                          AttributeSet attributeSet) {
-        RstyleableStatic rstyleableStatic = BRRstyleable.get();
-        TypedArray array = resources.obtainAttributes(attributeSet, rstyleableStatic.AccountAuthenticator());
-        try {
-            String accountType = array.getString(rstyleableStatic.AccountAuthenticator_accountType());
-            int label = array.getResourceId(rstyleableStatic.AccountAuthenticator_label(), 0);
-            int icon = array.getResourceId(rstyleableStatic.AccountAuthenticator_icon(), 0);
-            int smallIcon = array.getResourceId(rstyleableStatic.AccountAuthenticator_smallIcon(), 0);
-            int accountPreferences = array.getResourceId(rstyleableStatic.AccountAuthenticator_accountPreferences(), 0);
-            boolean customTokens = array.getBoolean(rstyleableStatic.AccountAuthenticator_customTokens(), false);
-            if (TextUtils.isEmpty(accountType)) {
+    private static final String ANDROID_XML_NS = "http://schemas.android.com/apk/res/android";
+
+    private static AuthenticatorDescription parseAuthenticatorDescription(Resources resources,
+            String packageName, AttributeSet attributes) {
+        // Account-authenticator metadata is ordinary public Android XML.
+        // Avoid reflecting hidden com.android.internal.R.styleable fields;
+        // those can fail on recent Android versions and leave an empty
+        // authenticator registry even though Google services are installed.
+        if (resources == null || attributes == null) return null;
+        String accountType = attributes.getAttributeValue(ANDROID_XML_NS, "accountType");
+        int accountTypeRes = attributes.getAttributeResourceValue(
+                ANDROID_XML_NS, "accountType", 0);
+        if (accountTypeRes != 0) {
+            try {
+                accountType = resources.getString(accountTypeRes);
+            } catch (Resources.NotFoundException e) {
+                Slog.w(TAG, "Authenticator accountType string resource unavailable");
                 return null;
             }
-            return new AuthenticatorDescription(accountType, packageName, label, icon, smallIcon, accountPreferences,
-                    customTokens);
-        } finally {
-            array.recycle();
         }
+        if (TextUtils.isEmpty(accountType)) return null;
+        return new AuthenticatorDescription(
+                accountType,
+                packageName,
+                attributes.getAttributeResourceValue(ANDROID_XML_NS, "label", 0),
+                attributes.getAttributeResourceValue(ANDROID_XML_NS, "icon", 0),
+                attributes.getAttributeResourceValue(ANDROID_XML_NS, "smallIcon", 0),
+                attributes.getAttributeResourceValue(ANDROID_XML_NS, "accountPreferences", 0),
+                attributes.getAttributeBooleanValue(ANDROID_XML_NS, "customTokens", false));
     }
 
     public void loadAuthenticatorCache(String packageName) {
-        mAuthenticatorCache.authenticators.clear();
+        // A package installation must NOT remove the authenticators registered
+        // by previously installed packages (especially com.google).
+        // Rebuilding from every virtual package also handles updates/removals.
         Intent intent = new Intent(AccountManager.ACTION_AUTHENTICATOR_INTENT);
-        if (packageName != null) {
-            intent.setPackage(packageName);
-        }
+        Map<String, AuthenticatorInfo> refreshed = new HashMap<>();
         generateServicesMap(
                 mPms.queryIntentServices(intent, PackageManager.GET_META_DATA, BUserHandle.USER_ALL),
-                mAuthenticatorCache.authenticators, new RegisteredServicesParser());
+                refreshed, new RegisteredServicesParser());
+        mAuthenticatorCache.publish(refreshed);
+        Slog.d(TAG, "Virtual authenticator types available: " + refreshed.size());
     }
 
     private void generateServicesMap(List<ResolveInfo> services, Map<String, AuthenticatorInfo> map,
                                      RegisteredServicesParser accountParser) {
+        if (services == null) return;
         for (ResolveInfo info : services) {
+            if (info == null || info.serviceInfo == null
+                    || info.serviceInfo.applicationInfo == null) continue;
             XmlResourceParser parser = accountParser.getParser(mContext, info.serviceInfo,
                     AccountManager.AUTHENTICATOR_META_DATA_NAME);
-            if (parser != null) {
-                try {
-                    AttributeSet attributeSet = Xml.asAttributeSet(parser);
-                    int type;
-                    while ((type = parser.next()) != XmlPullParser.END_DOCUMENT && type != XmlPullParser.START_TAG) {
-                        
+            if (parser == null) continue;
+            try {
+                AttributeSet attributeSet = Xml.asAttributeSet(parser);
+                int type;
+                while ((type = parser.next()) != XmlPullParser.END_DOCUMENT
+                        && type != XmlPullParser.START_TAG) { }
+                if (type == XmlPullParser.START_TAG
+                        && AccountManager.AUTHENTICATOR_ATTRIBUTES_NAME.equals(parser.getName())) {
+                    AuthenticatorDescription desc = parseAuthenticatorDescription(
+                            accountParser.getResources(mContext, info.serviceInfo.applicationInfo),
+                            info.serviceInfo.packageName, attributeSet);
+                    if (desc != null) {
+                        map.put(desc.type, new AuthenticatorInfo(desc, info.serviceInfo));
                     }
-                    if (AccountManager.AUTHENTICATOR_ATTRIBUTES_NAME.equals(parser.getName())) {
-                        AuthenticatorDescription desc = parseAuthenticatorDescription(
-                                accountParser.getResources(mContext, info.serviceInfo.applicationInfo),
-                                info.serviceInfo.packageName, attributeSet);
-                        if (desc != null) {
-                            map.put(desc.type, new AuthenticatorInfo(desc, info.serviceInfo));
-                        }
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
                 }
+            } catch (Exception e) {
+                Slog.w(TAG, "Could not read virtual account authenticator metadata");
+            } finally {
+                parser.close();
             }
         }
     }
@@ -1431,6 +1477,7 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
         private int mNumErrors = 0;
 
         IAccountAuthenticator mAuthenticator = null;
+        private boolean mServiceBound = false;
 
         private final boolean mStripAuthTokenFromResult;
         protected final BUserAccounts mAccounts;
@@ -1485,9 +1532,8 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
         protected boolean checkKeyIntent(int authUid, Intent intent) {
             
             
-            if (intent.getClipData() == null) {
-                intent.setClipData(ClipData.newPlainText(null, null));
-            }
+            // Do not add a synthetic empty ClipData item to Google's
+            // authentication Intent: on some Android versions it is invalid.
             intent.setFlags(intent.getFlags() & ~(Intent.FLAG_GRANT_READ_URI_PERMISSION
                     | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                     | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
@@ -1552,9 +1598,15 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
         }
 
         private void unbind() {
-            if (mAuthenticator != null) {
-                mAuthenticator = null;
-                mContext.unbindService(this);
+            mAuthenticator = null;
+            if (mServiceBound) {
+                mServiceBound = false;
+                try {
+                    mContext.unbindService(this);
+                } catch (IllegalArgumentException ignored) {
+                    // Android may have dropped the connection while shutting
+                    // down the virtual authenticator process.
+                }
             }
         }
 
@@ -1620,19 +1672,40 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
                 
                 
                 
+                // Persist a completed provider-verified account-creation result
+                // for this virtual user. Never store an intermediary login
+                // Intent as though the sign-in had succeeded.
+                String returnedName = result.getString(AccountManager.KEY_ACCOUNT_NAME);
+                String returnedType = result.getString(AccountManager.KEY_ACCOUNT_TYPE);
+                if (mUpdateLastAuthenticatedTime && TextUtils.isEmpty(mAccountName)
+                        && AccountResponsePolicy.isCompletedAccountAdd(
+                                mAccountType, returnedName, returnedType,
+                                result.containsKey(AccountManager.KEY_INTENT))) {
+                    Account created = new Account(returnedName, returnedType);
+                    if (!isAccountPresentForCaller(returnedName, returnedType,
+                            mAccounts.userId)) {
+                        addAccountInternal(mAccounts, created, null, null, null);
+                    }
+                }
                 boolean needUpdate = mUpdateLastAuthenticatedTime
                         && (isSuccessfulConfirmCreds || isSuccessfulUpdateCredsOrAddAccount);
                 if (needUpdate || mAuthDetailsRequired) {
-                    boolean accountPresent = isAccountPresentForCaller(mAccountName, mAccountType, mAccounts.userId);
+                    // For addAccount() the session starts WITHOUT an account
+                    // name. Using mAccountName directly threw IllegalArgumentException
+                    // after a successful authentication response.
+                    String resolvedName = !TextUtils.isEmpty(mAccountName)
+                            ? mAccountName : result.getString(AccountManager.KEY_ACCOUNT_NAME);
+                    boolean accountPresent = !TextUtils.isEmpty(resolvedName)
+                            && isAccountPresentForCaller(resolvedName, mAccountType, mAccounts.userId);
                     if (needUpdate && accountPresent) {
-                        updateLastAuthenticatedTime(mAccounts, new Account(mAccountName, mAccountType));
+                        updateLastAuthenticatedTime(mAccounts, new Account(resolvedName, mAccountType));
                     }
                     if (mAuthDetailsRequired) {
                         long lastAuthenticatedTime = -1;
                         if (accountPresent) {
                             lastAuthenticatedTime = mAccounts
                                     .findAccountLastAuthenticatedTime(
-                                            new Account(mAccountName, mAccountType));
+                                            new Account(resolvedName, mAccountType));
                         }
                         result.putLong(AccountManager.KEY_LAST_AUTHENTICATED_TIME,
                                 lastAuthenticatedTime);
@@ -1731,44 +1804,51 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
 
         
         private boolean bindToAuthenticator(String authenticatorType) {
-            AuthenticatorInfo authenticatorInfo = mAuthenticatorCache.authenticators.get(authenticatorType);
-            if (authenticatorInfo == null) {
-                if (Log.isLoggable(TAG, Log.VERBOSE)) {
-                    Log.v(TAG, "there is no authenticator for " + authenticatorType
-                            + ", bailing out");
-                }
+            AuthenticatorInfo provider = mAuthenticatorCache.authenticators.get(authenticatorType);
+            if (provider == null) {
+                Slog.w(TAG, "No virtual authenticator for type: " + authenticatorType);
+                return false;
+            }
+            if (!mPms.isInstalled(provider.serviceInfo.packageName, mAccounts.userId)) {
+                Slog.w(TAG, "Authenticator package is not installed in the requested virtual user.");
                 return false;
             }
 
+            // This service runs in HiddenBox's host process. Directly calling
+            // mContext.bindService() on the original component would bind the
+            // *real phone's* authenticator (if any), not the virtual one.
+            // Bind through BlackBox's existing proxy service dispatcher
+            // instead, so the provider runs in its own virtual user context.
+            Intent virtualService = new Intent(AccountManager.ACTION_AUTHENTICATOR_INTENT);
+            ComponentName virtualComponent = new ComponentName(
+                    provider.serviceInfo.packageName, provider.serviceInfo.name);
+            virtualService.setComponent(virtualComponent);
+            virtualService.putExtra("_B_|_UserId", mAccounts.userId);
 
-
-
-
-
-
-
-            Intent intent = new Intent();
-            intent.setAction(AccountManager.ACTION_AUTHENTICATOR_INTENT);
-            ComponentName componentName = new ComponentName(authenticatorInfo.serviceInfo.packageName, authenticatorInfo.serviceInfo.name);
-            intent.setComponent(componentName);
-            
-            intent.putExtra("_B_|_UserId", mAccounts.userId);
-
-            if (Log.isLoggable(TAG, Log.VERBOSE)) {
-                Log.v(TAG, "performing bindService to " + componentName);
-            }
-            int flags = Context.BIND_AUTO_CREATE;
-
-
-
-            if (!mContext.bindService(intent, this, flags)) {
-                if (Log.isLoggable(TAG, Log.VERBOSE)) {
-                    Log.v(TAG, "bindService to " + componentName + " failed");
+            try {
+                Intent proxyIntent = BActivityManagerService.get().bindService(
+                        virtualService, null, null, mAccounts.userId);
+                if (proxyIntent == null || proxyIntent.getComponent() == null
+                        || !BlackBoxCore.getHostPkg().equals(
+                                proxyIntent.getComponent().getPackageName())
+                        || virtualComponent.equals(proxyIntent.getComponent())) {
+                    Slog.w(TAG, "Virtual account authenticator proxy is unavailable.");
+                    return false;
                 }
+
+                mServiceBound = mContext.bindService(
+                        proxyIntent, this, Context.BIND_AUTO_CREATE);
+                if (!mServiceBound) {
+                    Slog.w(TAG, "Android did not bind the virtual authenticator proxy.");
+                }
+                return mServiceBound;
+            } catch (Exception e) {
+                // No account passwords, login options, tokens or email
+                // addresses should ever enter these diagnostic messages.
+                Slog.e(TAG, "Virtual authenticator binding failed: "
+                        + e.getClass().getSimpleName());
                 return false;
             }
-
-            return true;
         }
     }
 

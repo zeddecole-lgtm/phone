@@ -663,7 +663,19 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
 
 
 
-            PackageInfo packageArchiveInfo = BlackBoxCore.getPackageManager().getPackageArchiveInfo(apkFile.getAbsolutePath(), 0);
+            // Android's PackageParser can parse a complete split-APK cluster from
+            // its directory, but PackageManager.getPackageArchiveInfo needs base.apk.
+            File archiveApk = apkFile.isDirectory() ? new File(apkFile, "base.apk") : apkFile;
+            if (!archiveApk.isFile() || !archiveApk.canRead()) {
+                return result.installError("Missing or inaccessible base APK.");
+            }
+            File[] codeApks = apkFile.isDirectory()
+                    ? apkFile.listFiles((dir, name) -> name.endsWith(".apk"))
+                    : new File[]{apkFile};
+            if (codeApks == null || codeApks.length == 0) {
+                return result.installError("No APK files in installation.");
+            }
+            PackageInfo packageArchiveInfo = BlackBoxCore.getPackageManager().getPackageArchiveInfo(archiveApk.getAbsolutePath(), 0);
             if (packageArchiveInfo == null) {
                 return result.installError("getPackageArchiveInfo error.Please check whether APK is normal.");
             }
@@ -682,7 +694,7 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
                 Slog.w(TAG, "Installing potentially BlackBox-related app: " + packageName + ". Proceed with caution.");
             }
 
-            boolean support = AbiUtils.isSupport(apkFile);
+            boolean support = AbiUtils.isSupport(codeApks);
             if (!support) {
                 String msg = packageArchiveInfo.applicationInfo.loadLabel(BlackBoxCore.getPackageManager()) + "[" + packageArchiveInfo.packageName + "]";
                 return result.installError(packageArchiveInfo.packageName,
@@ -690,7 +702,15 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
             }
             PackageParser.Package aPackage = parserApk(apkFile.getAbsolutePath());
             if (aPackage == null) {
-                return result.installError("parser apk error.");
+                return result.installError("Unable to parse the complete APK set.");
+            }
+            if (apkFile.isDirectory()) {
+                int expectedSplits = codeApks.length - 1;
+                int parsedSplits = aPackage.splitCodePaths == null ? 0 : aPackage.splitCodePaths.length;
+                if (parsedSplits != expectedSplits) {
+                    return result.installError("APK set incomplete: found " + parsedSplits
+                            + " of " + expectedSplits + " split packages.");
+                }
             }
             result.packageName = aPackage.packageName;
 
@@ -717,13 +737,14 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
             return result;
         } catch (Throwable t) {
             t.printStackTrace();
+            return result.installError("Installation failed: " + t.getClass().getSimpleName()
+                    + (t.getMessage() == null ? "" : ": " + t.getMessage()));
         } finally {
             if (apkFile != null && option.isFlag(InstallOption.FLAG_URI_FILE)) {
                 FileUtils.deleteDir(apkFile);
             }
             Slog.d(TAG, "install finish: " + (System.currentTimeMillis() - l) + "ms");
         }
-        return result;
     }
 
     private PackageParser.Package parserApk(String file) {
